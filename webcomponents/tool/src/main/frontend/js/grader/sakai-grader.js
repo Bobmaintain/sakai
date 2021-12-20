@@ -238,7 +238,7 @@ export class SakaiGrader extends gradableDataMixin(SakaiElement) {
   renderGrader() {
 
     // Hide the right UI until we have push notifications for grade changes
-    if ( this.submission.ltiSubmissionLaunch ) return "";
+    // if ( this.submission.ltiSubmissionLaunch ) return "";
 
     return html`
       ${this.submission.id !== "dummy" ? html`
@@ -452,6 +452,7 @@ export class SakaiGrader extends gradableDataMixin(SakaiElement) {
         ` : ""}
         <div class="action-button-block act">
           <button accesskey="s" class="btn btn-primary active" name="save" @click=${this.save}>${this.assignmentsI18n["gen.sav"]}</button>
+          <button accesskey="z" @click=${this.reload}>Z</button>
           <button accesskey="d" name="return" @click=${this.saveAndRelease}>${this.assignmentsI18n["gen.retustud"]}</button>
           <button accesskey="x" name="cancel" @click=${this.cancel}>${this.assignmentsI18n["gen.can"]}</button>
         </div>
@@ -738,6 +739,10 @@ export class SakaiGrader extends gradableDataMixin(SakaiElement) {
       const rubricGrading = document.getElementsByTagName("sakai-rubric-grading").item(0);
       rubricGrading && rubricGrading.save();
     }
+  }
+
+  reload() {
+    alert('Dude');
   }
 
   /**

@@ -783,6 +783,7 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
             Set<AssignmentSubmissionSubmitter> submitters = s.getSubmitters();
 
             if (submitters.size() > 0) {
+System.out.println("grades grade type="+assignment.getTypeOfGrade());
                 if (assignment.getTypeOfGrade() == Assignment.GradeType.PASS_FAIL_GRADE_TYPE) {
                     return s.getGrade() == null ? "ungraded" : s.getGrade();
                 } else {
@@ -849,6 +850,7 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
 
         Assignment assignment = submission.getAssignment();
 
+System.out.println("setGrade grade type="+assignment.getTypeOfGrade());
         if (assignment.getTypeOfGrade() == Assignment.GradeType.SCORE_GRADE_TYPE) {
             grade = assignmentToolUtils.scalePointGrade(grade, assignment.getScaleFactor(), alerts);
         } else if (assignment.getTypeOfGrade() == Assignment.GradeType.PASS_FAIL_GRADE_TYPE && grade.equals("ungraded")) {
@@ -909,6 +911,104 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
             throw new EntityException("Failed to set grade on " + submissionId, "", HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
+/*
+    @EntityCustomAction(action = "getGrade", viewKey = EntityView.VIEW_LIST)
+    public ActionReturn getGrade(Map<String, Object> params) {
+
+        String userId = sessionManager.getCurrentSessionUserId();
+
+        if (StringUtils.isBlank(userId)) {
+            log.warn("setGrade attempt when not logged in");
+            throw new EntityException("You need to be logged in to set grades", "", HttpServletResponse.SC_UNAUTHORIZED);
+        }
+
+        String courseId = (String) params.get("courseId");
+        String gradableId = (String) params.get("gradableId");
+        String studentId = (String) params.get("studentId");
+        String submissionId = (String) params.get("submissionId");
+
+        AssignmentSubmission submission = null;
+        try {
+            submission = assignmentService.getSubmission(submissionId);
+        } catch (IdUnusedException iue) {
+            throw new EntityException("submissionId not found.", "", HttpServletResponse.SC_BAD_REQUEST);
+        } catch (PermissionException pe) {
+            throw new EntityException("You don't have permissions read submission " + submissionId, "", HttpServletResponse.SC_FORBIDDEN);
+        }
+
+        Site site = null;
+        try {
+            site = siteService.getSite(courseId);
+        } catch (IdUnusedException iue) {
+            throw new EntityException("The courseId (site id) you supplied is invalid", "", HttpServletResponse.SC_BAD_REQUEST);
+        }
+
+        Assignment assignment = submission.getAssignment();
+
+		String grade = null;
+        if (assignment.getTypeOfGrade() == Assignment.GradeType.SCORE_GRADE_TYPE) {
+            grade = assignmentToolUtils.scalePointGrade(grade, assignment.getScaleFactor(), alerts);
+System.out.println("Yada 1");
+        } else if (assignment.getTypeOfGrade() == Assignment.GradeType.PASS_FAIL_GRADE_TYPE && grade.equals("ungraded")) {
+System.out.println("Yada 2");
+            grade = null;
+        }
+
+        Map<String, Object> options = new HashMap<>();
+        options.put(GRADE_SUBMISSION_GRADE, grade);
+        options.put(GRADE_SUBMISSION_FEEDBACK_TEXT, feedbackText);
+        options.put(GRADE_SUBMISSION_FEEDBACK_COMMENT, feedbackComment);
+        options.put(GRADE_SUBMISSION_PRIVATE_NOTES, privateNotes);
+        options.put(WITH_GRADES, true);
+        options.put(ALLOW_RESUBMIT_NUMBER, resubmitNumber);
+
+        if (!StringUtils.isBlank(resubmitDate)) {
+            options.put(ALLOW_RESUBMIT_CLOSE_EPOCH_MILLIS, resubmitDate);
+        }
+
+        Set<String> attachmentKeys
+            = params.keySet().stream().filter(k -> k.startsWith("attachment")).collect(Collectors.toSet());
+
+        final List<Reference> attachmentRefs = attachmentKeys.stream().map(k -> {
+            FileItem item = (FileItem) params.get(k);
+            try {
+                // make a set of properties to add for the new resource
+                ResourcePropertiesEdit props = contentHostingService.newResourceProperties();
+                props.addProperty(ResourceProperties.PROP_DISPLAY_NAME, item.getName());
+                props.addProperty(ResourceProperties.PROP_DESCRIPTION, item.getName());
+                ContentResource cr = contentHostingService.addAttachmentResource(item.getName(),
+                    courseId, "Assignments", item.getContentType(), item.getInputStream(), props);
+                return entityManager.newReference(cr.getReference());
+            } catch (Exception e) {
+                throw new EntityException("Error while storing attachments", "", HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            }
+        }).collect(Collectors.toList());
+
+        options.put(GRADE_SUBMISSION_FEEDBACK_ATTACHMENT,  attachmentRefs);
+
+        options.put(GRADE_SUBMISSION_DONT_CLEAR_CURRENT_ATTACHMENTS, Boolean.TRUE);
+
+        // Add any rubrics params
+        params.keySet().stream().filter(k -> k.startsWith(RubricsConstants.RBCS_PREFIX)).forEach(k -> options.put(k, params.get(k)));
+
+        options.put("siteId", (String) params.get("siteId"));
+
+        assignmentToolUtils.gradeSubmission(submission, gradeOption, options, alerts);
+
+        Set<String> activeSubmitters = site.getUsersIsAllowed(SECURE_ADD_ASSIGNMENT_SUBMISSION);
+
+        if (submission != null) {
+            boolean anonymousGrading = assignmentService.assignmentUsesAnonymousGrading(assignment);
+            try {
+                return new ActionReturn(new SimpleSubmission(submission, new SimpleAssignment(assignment), activeSubmitters));
+            } catch (Exception e) {
+                throw new EntityException("Failed to set grade on " + submissionId, "", HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            }
+        } else {
+            throw new EntityException("Failed to set grade on " + submissionId, "", HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+*/
 
     @EntityCustomAction(action = "removeFeedbackAttachment", viewKey = EntityView.VIEW_LIST)
     public String removeFeedbackAttachment(Map<String, Object> params) {
