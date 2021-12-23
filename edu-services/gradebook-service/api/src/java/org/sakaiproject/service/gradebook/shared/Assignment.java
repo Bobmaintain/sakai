@@ -144,6 +144,9 @@ public class Assignment implements Serializable, Comparable<Assignment> {
 	@Getter
 	@Setter
 	private Integer categorizedSortOrder;
+	@Getter
+	@Setter
+	private String  lineItem;
 
 	/**
 	 * For editing. Not persisted.

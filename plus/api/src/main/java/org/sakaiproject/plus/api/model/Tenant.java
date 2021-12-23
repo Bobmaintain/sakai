@@ -1,0 +1,102 @@
+/*
+ * Copyright (c) 2021- Charles R. Severance
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+package org.sakaiproject.plus.api.model;
+
+import javax.persistence.Column;
+import javax.persistence.Lob;
+import javax.persistence.Embedded;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Index;
+import javax.persistence.UniqueConstraint;
+import javax.persistence.JoinColumn;
+import javax.persistence.Table;
+
+import org.hibernate.annotations.GenericGenerator;
+
+import org.sakaiproject.springframework.data.PersistableEntity;
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Table(name = "PLUS_TENANT",
+  indexes = { @Index(columnList = "ISSUER, CLIENT_ID") },
+  uniqueConstraints = { @UniqueConstraint(columnNames = { "ISSUER", "CLIENT_ID" }) }
+)
+@Getter
+@Setter
+public class Tenant extends BaseLTI implements PersistableEntity<String> {
+
+	@Id
+	@Column(name = "TENNANT_GUID", length = LENGTH_GUID, nullable = false)
+	@GeneratedValue(generator = "uuid")
+	@GenericGenerator(name = "uuid", strategy = "uuid2")
+	private String id;
+
+	@Column(name = "TITLE", length = LENGTH_TITLE, nullable = false)
+	private String title;
+
+	@Column(name = "DESCRIPTION", length = LENGTH_MEDIUMTEXT, nullable = true)
+	private String description;
+
+	// Issuer and client_id can be null while a key is being built but a key is not usable
+	// until both fields are defined and the other values are present
+	@Column(name = "ISSUER", length = LENGTH_EXTERNAL_ID, nullable = true)
+	protected String issuer;
+
+	@Column(name = "CLIENT_ID", length = LENGTH_EXTERNAL_ID, nullable = true)
+	private String clientId;
+
+	@Column(name = "DEPLOYMENT_ID", length = LENGTH_EXTERNAL_ID, nullable = true)
+	private String deploymentId;
+
+	@Column(name = "TRUST_EMAIL", nullable = true)
+	private Boolean trustEmail;
+
+	@Column(name = "OIDC_AUTH", length = LENGTH_URI, nullable = true)
+	private String oidcAuth;
+
+	@Column(name = "OIDC_KEYSET", length = LENGTH_URI, nullable = true)
+	private String oidcKeySet;
+
+	@Column(name = "OIDC_TOKEN", length = LENGTH_URI, nullable = true)
+	private String oidcToken;
+
+	// This is usually optional except for D2L
+	@Column(name = "OIDC_AUDIENCE", length = LENGTH_EXTERNAL_ID, nullable = true)
+	private String oidcAudience;
+
+	@Column(name = "CACHE_KEYSET", length = LENGTH_MEDIUMTEXT, nullable = true)
+	private String cacheKeySet;
+
+	public boolean isDraft()
+	{
+		if ( issuer == null || clientId == null || deploymentId == null ||
+				oidcAuth == null || oidcKeySet == null || oidcToken == null ) return true;
+
+		if ( issuer.length() < 1 || clientId.length() < 1 ||
+				deploymentId.length() < 1 || oidcAuth.length() < 1 ||
+				oidcKeySet.length() < 1 || oidcToken.length() < 1 ) return true;
+		return false;
+	}
+
+	// vim: tabstop=4 noet
+
+}

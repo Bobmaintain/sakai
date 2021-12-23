@@ -86,6 +86,7 @@ import org.tsugi.lti13.LTI13JwtUtil;
 import org.tsugi.lti13.LTI13ConstantsUtil;
 
 import org.tsugi.oauth2.objects.AccessToken;
+import org.tsugi.oauth2.objects.ClientAssertion;
 import org.tsugi.lti13.objects.Endpoint;
 import org.tsugi.lti13.objects.LaunchLIS;
 import org.tsugi.ags2.objects.Result;
@@ -796,9 +797,9 @@ public class LTI13Servlet extends HttpServlet {
 			return;
 		}
 
-		String grant_type = request.getParameter(AccessToken.GRANT_TYPE);
-		String client_assertion = request.getParameter(AccessToken.CLIENT_ASSERTION);
-		String scope = request.getParameter(AccessToken.SCOPE);
+		String grant_type = request.getParameter(ClientAssertion.GRANT_TYPE);
+		String client_assertion = request.getParameter(ClientAssertion.CLIENT_ASSERTION);
+		String scope = request.getParameter(ClientAssertion.SCOPE);
 		String missing = "";
 		if (grant_type == null) {
 			missing += " " + "grant_type";
@@ -873,18 +874,18 @@ public class LTI13Servlet extends HttpServlet {
 		sat.expires = issued + 3600L;
 
 		// Work through requested scopes
-		if (scope.contains(Endpoint.SCOPE_LINEITEM_READONLY)) {
+		if (scope.contains(LTI13ConstantsUtil.SCOPE_LINEITEM_READONLY)) {
 			if (allowLineItems != 1) {
-				LTI13Util.return400(response, "invalid_scope", Endpoint.SCOPE_LINEITEM_READONLY);
+				LTI13Util.return400(response, "invalid_scope", LTI13ConstantsUtil.SCOPE_LINEITEM_READONLY);
 				log.error("Scope lineitem not allowed {}", tool_id);
 				return;
 			}
 			sat.addScope(SakaiAccessToken.SCOPE_LINEITEMS_READONLY);
 		}
 
-		if (scope.contains(Endpoint.SCOPE_LINEITEM)) {
+		if (scope.contains(LTI13ConstantsUtil.SCOPE_LINEITEM)) {
 			if (allowLineItems != 1) {
-				LTI13Util.return400(response, "invalid_scope", Endpoint.SCOPE_LINEITEM);
+				LTI13Util.return400(response, "invalid_scope", LTI13ConstantsUtil.SCOPE_LINEITEM);
 				log.error("Scope lineitem not allowed {}", tool_id);
 				return;
 			}
@@ -892,27 +893,27 @@ public class LTI13Servlet extends HttpServlet {
 			sat.addScope(SakaiAccessToken.SCOPE_LINEITEMS_READONLY);
 		}
 
-		if (scope.contains(Endpoint.SCOPE_SCORE)) {
+		if (scope.contains(LTI13ConstantsUtil.SCOPE_SCORE)) {
 			if (allowOutcomes != 1 || allowLineItems != 1) {
-				LTI13Util.return400(response, "invalid_scope", Endpoint.SCOPE_SCORE);
+				LTI13Util.return400(response, "invalid_scope", LTI13ConstantsUtil.SCOPE_SCORE);
 				log.error("Scope lineitem not allowed {}", tool_id);
 				return;
 			}
 			sat.addScope(SakaiAccessToken.SCOPE_BASICOUTCOME);
 		}
 
-		if (scope.contains(Endpoint.SCOPE_RESULT_READONLY)) {
+		if (scope.contains(LTI13ConstantsUtil.SCOPE_RESULT_READONLY)) {
 			if (allowOutcomes != 1 || allowLineItems != 1) {
-				LTI13Util.return400(response, "invalid_scope", Endpoint.SCOPE_RESULT_READONLY);
+				LTI13Util.return400(response, "invalid_scope", LTI13ConstantsUtil.SCOPE_RESULT_READONLY);
 				log.error("Scope lineitem not allowed {}", tool_id);
 				return;
 			}
 			sat.addScope(SakaiAccessToken.SCOPE_BASICOUTCOME);
 		}
 
-		if (scope.contains(LaunchLIS.SCOPE_NAMES_AND_ROLES)) {
+		if (scope.contains(LTI13ConstantsUtil.SCOPE_NAMES_AND_ROLES)) {
 			if (allowOutcomes != 1) {
-				LTI13Util.return400(response, "invalid_scope", LaunchLIS.SCOPE_NAMES_AND_ROLES);
+				LTI13Util.return400(response, "invalid_scope", LTI13ConstantsUtil.SCOPE_NAMES_AND_ROLES);
 				log.error("Scope lineitem not allowed {}", tool_id);
 				return;
 			}

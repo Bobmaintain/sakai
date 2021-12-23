@@ -78,6 +78,7 @@ import org.sakaiproject.service.gradebook.shared.exception.UnmappableCourseGrade
 import org.sakaiproject.site.api.Group;
 import org.sakaiproject.site.api.Site;
 import org.sakaiproject.site.api.SiteService;
+import org.sakaiproject.plus.api.service.PlusService;
 import org.sakaiproject.tool.gradebook.AssignmentGradeRecord;
 import org.sakaiproject.tool.gradebook.Category;
 import org.sakaiproject.tool.gradebook.Comment;
@@ -107,6 +108,8 @@ public class GradebookServiceHibernateImpl extends BaseHibernateManager implemen
 	private Authz authz;
 	private GradebookPermissionService gradebookPermissionService;
 	protected SiteService siteService;
+	@Getter @Setter
+	protected PlusService plusService;
 
 	@Setter
 	protected ServerConfigurationService serverConfigService;
@@ -278,6 +281,7 @@ public class GradebookServiceHibernateImpl extends BaseHibernateManager implemen
     	assignmentDefinition.setReleased(internalAssignment.isReleased());
     	assignmentDefinition.setId(internalAssignment.getId());
     	assignmentDefinition.setExtraCredit(internalAssignment.isExtraCredit());
+    	assignmentDefinition.setLineItem(internalAssignment.getLineItem());
     	if(internalAssignment.getCategory() != null) {
     		assignmentDefinition.setCategoryName(internalAssignment.getCategory().getName());
     		assignmentDefinition.setWeight(internalAssignment.getCategory().getWeight());
@@ -640,15 +644,36 @@ public class GradebookServiceHibernateImpl extends BaseHibernateManager implemen
 
 		final Gradebook gradebook = getGradebook(gradebookUid);
 
+
+		Long assignmentId = null;
 		// if attaching to category
 		if (assignmentDefinition.getCategoryId() != null) {
-			return createAssignmentForCategory(gradebook.getId(), assignmentDefinition.getCategoryId(), validatedName,
+			assignmentId = createAssignmentForCategory(gradebook.getId(), assignmentDefinition.getCategoryId(), validatedName,
 					assignmentDefinition.getPoints(), assignmentDefinition.getDueDate(), !assignmentDefinition.isCounted(), assignmentDefinition.isReleased(),
 					assignmentDefinition.isExtraCredit(), assignmentDefinition.getCategorizedSortOrder());
+		} else {
+			assignmentId = createAssignment(gradebook.getId(), validatedName, assignmentDefinition.getPoints(), assignmentDefinition.getDueDate(),
+				!assignmentDefinition.isCounted(), assignmentDefinition.isReleased(), assignmentDefinition.isExtraCredit(), assignmentDefinition.getSortOrder());
 		}
 
-		return createAssignment(gradebook.getId(), validatedName, assignmentDefinition.getPoints(), assignmentDefinition.getDueDate(),
-				!assignmentDefinition.isCounted(), assignmentDefinition.isReleased(), assignmentDefinition.isExtraCredit(), assignmentDefinition.getSortOrder());
+
+		// Check if this ia a plus course
+		if ( plusService.enabled() ) {
+			try {
+				final Site site = this.siteService.getSite(gradebookUid);
+				if ( plusService.enabled(site) ) {
+					String lineItem = plusService.createLineItem(site, assignmentId, assignmentDefinition);
+System.out.println("lineItem="+lineItem);
+					assignmentDefinition.setLineItem(lineItem);
+					updateAssignment(gradebookUid, assignmentId, assignmentDefinition);
+				}
+			} catch (Exception e) {
+				log.error("Could not load site associated with gradebook - lineitem not created", e);
+			}
+		}
+
+		return assignmentId;
+
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -700,6 +725,8 @@ public class GradebookServiceHibernateImpl extends BaseHibernateManager implemen
 				assignment.setExternallyMaintained(assignmentDefinition.isExternallyMaintained());
 				assignment.setExternalId(assignmentDefinition.getExternalId());
 				assignment.setExternalData(assignmentDefinition.getExternalData());
+
+				assignment.setLineItem(assignmentDefinition.getLineItem());
 
 				// if we have a category, get it and set it
 				// otherwise clear it fully
@@ -2401,6 +2428,7 @@ public class GradebookServiceHibernateImpl extends BaseHibernateManager implemen
 			log.debug("Score updated in gradebookUid=" + gradebookUid + ", assignmentId=" + assignmentId + " by userUid=" + getUserUid()
 					+ " from client=" + clientServiceDescription + ", new score=" + score);
 		}
+
 	}
 
 	@Override

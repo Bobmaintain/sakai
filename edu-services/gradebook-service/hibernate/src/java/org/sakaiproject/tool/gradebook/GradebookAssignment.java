@@ -88,6 +88,7 @@ public class GradebookAssignment extends GradableObject {
 	@Getter @Setter private String externalId;
 	@Getter @Setter private String externalAppName;
 	@Getter @Setter private String externalData;
+	@Getter @Setter private String lineItem;
 	@Setter @Getter private Boolean released;
 	@Getter @Setter private Category category;
 	@Getter @Setter private Double averageTotal;

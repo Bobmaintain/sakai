@@ -17,6 +17,11 @@
 package org.tsugi.http;
 
 import java.util.Enumeration;
+import java.util.Map;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.Cookie;
 
@@ -24,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * Some Tsugi Utility code for to make using Jackson easier to use.
+ * Some Tsugi Utility code for to make using Http easier to use.
  */
 @SuppressWarnings("deprecation")
 @Slf4j
@@ -66,4 +71,27 @@ public class HttpUtil {
 		}
 		return null;
 	}
+
+
+	public static String augmentGetURL(String url, Map<String, String> data) {
+
+		if ( data == null || data.size() < 1 ) return url;
+
+		var builder = new StringBuilder();
+		builder.append(url);
+		boolean questionMark = url.contains("?");
+
+		for (Map.Entry<String, String> entry : data.entrySet()) {
+			if (! questionMark ) {
+				builder.append("?");
+			} else {
+				builder.append("&");
+			}
+			builder.append(URLEncoder.encode(entry.getKey().toString(), StandardCharsets.UTF_8));
+			builder.append("=");
+			builder.append(URLEncoder.encode(entry.getValue().toString(), StandardCharsets.UTF_8));
+		}
+		return builder.toString();
+	}
+
 }

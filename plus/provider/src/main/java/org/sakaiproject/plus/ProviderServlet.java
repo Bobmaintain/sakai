@@ -1,0 +1,1383 @@
+/**
+ * $URL$
+ * $Id$
+ *
+ * Copyright (c) 2009- The Sakai Foundation
+ *
+ * Licensed under the Educational Community License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *			 http://www.opensource.org/licenses/ECL-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.sakaiproject.plus;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.InputStream;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.net.URL;
+import java.net.MalformedURLException;
+import java.util.*;
+
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletContext;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import lombok.extern.slf4j.Slf4j;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwsHeader;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
+import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.SignatureAlgorithm;
+import java.security.Key;
+import java.security.KeyPair;
+import java.security.interfaces.RSAPublicKey;
+
+import java.time.Instant;
+
+import net.oauth.*;
+import net.oauth.server.OAuthServlet;
+import net.oauth.signature.OAuthSignatureMethod;
+
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.json.simple.JSONValue;
+import org.json.simple.JSONObject;
+import org.json.simple.JSONArray;
+
+import org.tsugi.basiclti.BasicLTIConstants;
+import org.tsugi.basiclti.BasicLTIUtil;
+import org.tsugi.lti13.LTI13JwtUtil;
+import org.tsugi.lti13.LTI13KeySetUtil;
+import org.tsugi.jackson.JacksonUtil;
+
+import org.sakaiproject.authz.api.SecurityAdvisor;
+import org.sakaiproject.authz.cover.SecurityService;
+import org.sakaiproject.lti.api.BLTIProcessor;
+import org.sakaiproject.lti.api.LTIException;
+import org.sakaiproject.lti.api.LTIService;
+import org.sakaiproject.lti.api.SiteEmailPreferenceSetter;
+import org.sakaiproject.lti.api.UserFinderOrCreator;
+import org.sakaiproject.lti.api.UserLocaleSetter;
+import org.sakaiproject.lti.api.UserPictureSetter;
+import org.sakaiproject.lti.api.SiteMembershipUpdater;
+import org.sakaiproject.lti.api.SiteMembershipsSynchroniser;
+import org.sakaiproject.basiclti.util.SakaiBLTIUtil;
+import org.sakaiproject.basiclti.util.SakaiKeySetUtil;
+import org.sakaiproject.basiclti.util.SakaiLTIProviderUtil;
+import org.sakaiproject.basiclti.util.LegacyShaUtil;
+import org.sakaiproject.component.cover.ComponentManager;
+import org.sakaiproject.component.cover.ServerConfigurationService;
+import org.sakaiproject.event.cover.UsageSessionService;
+import org.sakaiproject.exception.IdUnusedException;
+import org.sakaiproject.site.api.Site;
+import org.sakaiproject.site.api.SitePage;
+import static org.sakaiproject.site.api.SiteService.SITE_TITLE_MAX_LENGTH;
+import org.sakaiproject.site.api.SiteService.SiteTitleValidationStatus;
+import org.sakaiproject.site.api.ToolConfiguration;
+import org.sakaiproject.site.cover.SiteService;
+import org.sakaiproject.tool.api.Session;
+import org.sakaiproject.tool.api.Tool;
+import org.sakaiproject.tool.cover.SessionManager;
+import org.sakaiproject.tool.cover.ToolManager;
+import org.sakaiproject.user.api.User;
+import org.sakaiproject.user.cover.UserDirectoryService;
+import org.sakaiproject.util.ResourceLoader;
+import org.sakaiproject.util.api.FormattedText;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.web.context.support.WebApplicationContextUtils;
+
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+
+import org.tsugi.lti13.objects.LaunchJWT;
+import org.sakaiproject.lti13.util.SakaiLaunchJWT;
+import org.tsugi.lti13.LTI13Util;
+import org.apache.commons.lang3.StringUtils;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
+import org.apache.http.client.utils.URIBuilder;
+
+import org.tsugi.deeplink.objects.DeepLinkResponse;
+import org.tsugi.deeplink.objects.LtiResourceLink;
+
+import org.sakaiproject.plus.api.service.PlusService;
+
+import org.sakaiproject.plus.api.model.Tenant;
+import org.sakaiproject.plus.api.model.Subject;
+import org.sakaiproject.plus.api.model.Context;
+import org.sakaiproject.plus.api.model.Link;
+import org.sakaiproject.plus.api.model.LineItem;
+import org.sakaiproject.plus.api.model.Score;
+
+import org.sakaiproject.plus.api.repository.TenantRepository;
+import org.sakaiproject.plus.api.repository.ContextRepository;
+
+import org.sakaiproject.plus.api.Launch;
+
+/**
+ * Notes:
+ *
+ * This program is directly exposed as a URL to receive IMS Basic LTI launches
+ * so it must be carefully reviewed and any changes must be looked at carefully.
+ * Here are some issues:
+ *
+ * - This will only function when it is enabled via sakai.properties
+ *
+ * - This servlet makes use of security advisors - once an advisor has been
+ * added, it must be removed - often in a finally. Also the code below only adds
+ * the advisor for very short segments of code to allow for easier review.
+ *
+ * Implemented using a SHA-1 hash of the effective context_id and then stores
+ * the original context_id in a site.property "lti_context_id" which will be
+ * useful for later reference. Since SHA-1 hashes to 40 chars, that would leave
+ * us 59 chars (i.e. 58 + ":") to use for LTI key. This also means that the new
+ * maximum supported size of an effective context_id is the maximum message size
+ * of SHA-1: maximum length of (264 ? 1) bits.
+ */
+
+@SuppressWarnings("deprecation")
+@Slf4j
+public class ProviderServlet extends HttpServlet {
+
+	private static final long serialVersionUID = 1L;
+	private static ResourceLoader rb = new ResourceLoader("plus");
+	private static final String BASICLTI_RESOURCE_LINK = "blti:resource_link_id";
+
+	private static final String CACHE_NAME = ProviderServlet.class.getName() + "_cache";
+
+	// All loaded from the component manager
+	private SiteMembershipUpdater siteMembershipUpdater = null;
+	private SiteMembershipsSynchroniser siteMembershipsSynchroniser  = null;
+	private SiteEmailPreferenceSetter siteEmailPreferenceSetter = null;
+	private UserFinderOrCreator userFinderOrCreator = null;
+	private UserLocaleSetter userLocaleSetter = null;
+	private UserPictureSetter userPictureSetter = null;
+	private LTIService ltiService = null;
+	private PlusService plusService = null;
+
+	private List<BLTIProcessor> bltiProcessors = new ArrayList();
+
+	private TenantRepository tenantRepository;
+	private ContextRepository contextRepository;
+
+	private String randomUUID = UUID.randomUUID().toString();
+
+	private KeyPair localKeyPair = LTI13Util.generateKeyPair();
+
+	private static Cache getCache()
+	{
+		CacheManager cacheManager = (CacheManager) ComponentManager.get("org.sakaiproject.ignite.SakaiCacheManager");
+		return cacheManager.getCache(CACHE_NAME);
+	}
+
+	public static String getCacheKey(String key)
+	{
+		Cache cache = getCache();
+		Cache.ValueWrapper value = cache.get(key);
+		if ( value == null ) return null;
+		return (String) value.get();
+	}
+
+	public static void putCacheKey(String key, String value)
+	{
+		Cache cache = getCache();
+		cache.put(key, value);
+	}
+
+	private enum ProcessingState {
+		beforeValidation, afterValidation, afterUserCreation, afterLogin, afterSiteCreation,
+		afterSiteMembership, beforeLaunch
+	}
+
+	/**
+	 * Setup a security advisor.
+	 */
+	public void pushAdvisor() {
+		// setup a security advisor
+		SecurityService.pushAdvisor(new SecurityAdvisor() {
+			public SecurityAdvice isAllowed(String userId, String function,
+					String reference) {
+				return SecurityAdvice.ALLOWED;
+			}
+		});
+	}
+
+	/**
+	 * Remove our security advisor.
+	 */
+	public void popAdvisor() {
+		SecurityService.popAdvisor();
+	}
+
+	public void doError(HttpServletRequest request,HttpServletResponse response, String s, String message, Throwable e) throws java.io.IOException {
+		if (e != null) {
+			log.error(e.getLocalizedMessage(), e);
+		}
+		log.info("{}: {}", rb.getString(s), message);
+		String return_url = request.getParameter(BasicLTIConstants.LAUNCH_PRESENTATION_RETURN_URL);
+		if (return_url != null && return_url.length() > 1) {
+			if (return_url.indexOf('?') > 1) {
+				return_url += "&lti_msg=" + URLEncoder.encode(rb.getString(s), "UTF-8");
+			} else {
+				return_url += "?lti_msg=" + URLEncoder.encode(rb.getString(s), "UTF-8");
+			}
+			// Avoid Response Splitting
+			return_url = return_url.replaceAll("[\r\n]","");
+			response.sendRedirect(return_url);
+			return;
+		}
+		PrintWriter out = response.getWriter();
+		out.println(rb.getString(s));
+	}
+
+	@Override
+	public void init(ServletConfig config) throws ServletException {
+
+		super.init(config);
+
+		siteEmailPreferenceSetter = (SiteEmailPreferenceSetter) ComponentManager.getInstance().get("org.sakaiproject.lti.api.SiteEmailPreferenceSetter");
+		if (siteEmailPreferenceSetter  == null) {
+			throw new ServletException("Failed to set siteEmailPreferenceSetter.");
+		}
+
+		siteMembershipUpdater = (SiteMembershipUpdater) ComponentManager.getInstance().get("org.sakaiproject.lti.api.SiteMembershipUpdater");
+		if (siteMembershipUpdater == null) {
+			throw new ServletException("Failed to set siteMembershipUpdater.");
+		}
+
+		siteMembershipsSynchroniser = (SiteMembershipsSynchroniser) ComponentManager.getInstance().get("org.sakaiproject.lti.api.SiteMembershipsSynchroniser");
+		if (siteMembershipsSynchroniser == null) {
+			throw new ServletException("Failed to set siteMembershipsSynchroniser.");
+		}
+
+		userFinderOrCreator = (UserFinderOrCreator) ComponentManager.getInstance().get("org.sakaiproject.lti.api.UserFinderOrCreator");
+		if (userFinderOrCreator  == null) {
+			throw new ServletException("Failed to set userFinderOrCreator.");
+		}
+
+		userPictureSetter = (UserPictureSetter) ComponentManager.getInstance().get("org.sakaiproject.lti.api.UserPictureSetter");
+		if (userPictureSetter == null) {
+			throw new ServletException("Failed to set userPictureSettter.");
+		}
+
+		userLocaleSetter = (UserLocaleSetter) ComponentManager.getInstance().get("org.sakaiproject.lti.api.UserLocaleSetter");
+		if (userLocaleSetter == null) {
+			throw new ServletException("Failed to set userLocaleSettter.");
+		}
+
+		ltiService = (LTIService) ComponentManager.getInstance().get("org.sakaiproject.lti.api.LTIService");
+		if (ltiService  == null) {
+			throw new ServletException("Failed to set ltiService.");
+		}
+
+		plusService = (PlusService) ComponentManager.getInstance().get("org.sakaiproject.plus.api.service.PlusService");
+		if (plusService  == null) {
+			throw new ServletException("Failed to set plusService.");
+		}
+
+		tenantRepository = (TenantRepository) ComponentManager.getInstance().get("org.sakaiproject.plus.api.repository.TenantRepository");
+		if (tenantRepository  == null) {
+			throw new ServletException("Failed to set tenantRepository.");
+		}
+
+		contextRepository = (ContextRepository) ComponentManager.getInstance().get("org.sakaiproject.plus.api.repository.ContextRepository");
+		if (contextRepository  == null) {
+			throw new ServletException("Failed to set contextRepository.");
+		}
+
+		ApplicationContext ac = WebApplicationContextUtils.getWebApplicationContext(config.getServletContext());
+
+		// load all instance of BLTIProcessor in component mgr by type detection
+		Collection processors = ac.getParent().getBeansOfType(BLTIProcessor.class).values();
+		bltiProcessors = new ArrayList(processors);
+		// sort in using getOrder() method
+
+		// sort them so the execution order is determined consistenly - by getOrder()
+		Collections.sort(bltiProcessors, new Comparator() {
+			public int compare(Object o1, Object o2) {
+				return ((Comparable) ((BLTIProcessor) (o1)).getOrder())
+						.compareTo(((BLTIProcessor) (o2)).getOrder());
+			}
+		});
+	}
+
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+
+		doPost(request, response);
+	}
+
+	@SuppressWarnings("unchecked")
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		log.debug("doPost {}", request.getPathInfo());
+System.out.println("===> request "+request.getPathInfo());
+
+		String ipAddress = request.getRemoteAddr();
+		if (log.isDebugEnabled()) {
+			log.debug("Sakai Plus Provider request from IP={}", ipAddress);
+		}
+
+		if ( !plusService.enabled() ) {
+			log.warn("LTI Advantage Provider is Disabled IP={}", ipAddress);
+			response.sendError(HttpServletResponse.SC_FORBIDDEN,
+					"LTI Advantage Provider is Disabled");
+			return;
+		}
+
+		String uri = request.getPathInfo(); // /oidc_login/4444
+		String[] parts = uri.split("/");
+
+		// /plus/sakai/oidc_login/44guid44
+		// /oidc_login/44guid44
+		if (parts.length >= 3 && "oidc_login".equals(parts[1])) {
+			if ( parts.length == 3 && isNotEmpty(parts[2])) {
+				handleOIDCLogin(request, response, parts[2]);
+				return;
+			}
+			doError(request, response, "plus.oidc_login.format", uri, null);
+			return;
+		}
+
+		if (log.isDebugEnabled()) {
+			Map<String, String[]> params = (Map<String, String[]>) request
+					.getParameterMap();
+			for (Map.Entry<String, String[]> param : params.entrySet()) {
+				log.debug("{}:{}", param.getKey(), param.getValue()[0]);
+			}
+		}
+
+		if ( "/canvas-config.json".equals(request.getPathInfo()) ) {
+			if ( ServerConfigurationService.getBoolean("canvas.config.enabled", true))  {
+				handleCanvasConfig(request, response);
+				return;
+			} else {
+				log.warn("Canvas config is Disabled IP={}", ipAddress);
+				response.sendError(HttpServletResponse.SC_FORBIDDEN,
+						"Canvas config is Disabled");
+				return;
+			}
+		}
+
+		// REQUIRED. The issuer identifier identifying the learning platform.
+		String id_token = request.getParameter("id_token");
+		String state = request.getParameter("state");
+		String payloadStr = request.getParameter("payload");
+
+		// TODO: Check for and add Extra Canvas error detail...
+		if ( StringUtils.isBlank(id_token) ) {
+			doError(request, response, "plus.launch.id_token.notfound", null, null);
+			return;
+		}
+
+		// Parse the id_token and check for format and missing values (validation is later)
+		String rawbody = LTI13JwtUtil.rawJwtBody(id_token);
+		ObjectMapper mapper = JacksonUtil.getLaxObjectMapper();
+
+		SakaiLaunchJWT launchJWT = mapper.readValue(rawbody, SakaiLaunchJWT.class);
+
+		String issuer = launchJWT.issuer;
+		String clientId = launchJWT.audience;
+		String deploymentId = launchJWT.deployment_id;
+
+		if ( isEmpty(issuer) || isEmpty(clientId) || isEmpty(deploymentId) ) {
+			doError(request, response, "plus.launch.id_token.missing.data", null, null);
+			return;
+		}
+
+		// Check if we are in the install-phase of a DeepLink process (i.e. payloadStr is defined)
+		if ( LaunchJWT.MESSAGE_TYPE_DEEP_LINK.equals(launchJWT.message_type) && isNotEmpty(payloadStr)) {
+			if ( ! ServerConfigurationService.getBoolean("deeplink.provider", true))  {
+				log.warn("DeepLink is Disabled IP={}", ipAddress);
+				response.sendError(HttpServletResponse.SC_FORBIDDEN,
+						"DeepLink is Disabled");
+				return;
+			} else {
+				log.debug("DeepLink Install");
+				handleDeepLinkInstall(request, response, launchJWT, payloadStr);
+				return;
+			}
+		}
+
+
+		// Verify the state
+		if ( StringUtils.isBlank(state) ) {
+			doError(request, response, "plus.launch.state.notfound", null, null);
+			return;
+		}
+
+		// First check the signature on state - this is inexpensive and requires no DB
+		Key stateKey = localKeyPair.getPublic();
+		// Chaos Monkey : stateKey = LTI13Util.generateKeyPair().getPublic();
+		Claims claims = null;
+		try {
+			Jws<Claims> jws = Jwts.parser().setAllowedClockSkewSeconds(60).setSigningKey(stateKey).parseClaimsJws(state);
+			claims = jws.getBody();
+		} catch (io.jsonwebtoken.security.SignatureException e) {
+			doError(request, response, "plus.launch.state.signature", null, null);
+			return;
+		}
+
+		// TODO: Double check the browser signature
+
+		// Load tenant and make sure it matches the Launch
+		String tenant_guid = (String) claims.get("tenant_guid");
+
+		Optional<Tenant> optTenant = tenantRepository.findById(tenant_guid);
+		Tenant tenant = null;
+		if ( optTenant.isPresent() ) {
+			tenant = optTenant.get();
+		}
+
+		if ( tenant == null ) {
+			doError(request, response, "plus.tenant.notfound", tenant_guid, null);
+			return;
+		}
+
+		String missing = "";
+		if (! issuer.equals(tenant.getIssuer()) ) missing = missing + "issuer mismatch ";
+		if (! clientId.equals(tenant.getClientId()) ) missing = missing + "clientId mismatch ";
+		if (! deploymentId.equals(tenant.getDeploymentId()) ) missing = missing + "deploymentId mismatch ";
+
+		if ( ! missing.equals("") ) {
+		   doError(request, response, "plus.plusservice.tenant.check", missing, null);
+		}
+
+		// Store this all in payload for future use and to share some of the
+		// processing code between LTI 1.1 and Advantage
+		Map<String, String> payload = new HashMap<String,String>();
+		payload.put("tenant_guid", tenant_guid);
+		payload.put("id_token", id_token);
+		payload.put("issuer", launchJWT.issuer);
+		payload.put("client_id", launchJWT.audience); // Note name change
+		payload.put("deployment_id", launchJWT.deployment_id);
+		payload.put("oidc_token", tenant.getOidcToken());
+		payload.put("oidc_audience", tenant.getOidcAudience());
+		payload.put(BasicLTIConstants.LTI_MESSAGE_TYPE, launchJWT.message_type);
+
+		if ( launchJWT.context != null ) {
+			if ( launchJWT.context.title != null ) payload.put(BasicLTIConstants.CONTEXT_TITLE, launchJWT.context.title);
+			if ( launchJWT.context.label != null ) payload.put(BasicLTIConstants.CONTEXT_LABEL, launchJWT.context.label);
+		}
+
+		// https://www.imsglobal.org/spec/lti/v1p3/#resource-link-claim
+		String linkId = launchJWT.resource_link != null ? launchJWT.resource_link.id : null;
+		if ( linkId != null ) {
+			payload.put(BasicLTIConstants.RESOURCE_LINK_ID, linkId);
+			if ( launchJWT.resource_link.title != null ) payload.put(BasicLTIConstants.RESOURCE_LINK_TITLE, launchJWT.resource_link.title);
+			if ( launchJWT.resource_link.description != null ) payload.put(BasicLTIConstants.RESOURCE_LINK_DESCRIPTION, launchJWT.resource_link.description);
+		}
+
+		// User data
+		payload.put(BasicLTIConstants.USER_ID, launchJWT.subject);
+		payload.put(BasicLTIConstants.LAUNCH_PRESENTATION_LOCALE, launchJWT.locale);
+		payload.put(BasicLTIConstants.LIS_PERSON_CONTACT_EMAIL_PRIMARY, launchJWT.email);
+		payload.put(BasicLTIConstants.LIS_PERSON_NAME_GIVEN, launchJWT.given_name);
+		// payload.put(BasicLTIConstants.LIS_PERSON_NAME_MIDDLE, launchJWT.middle_name);
+		payload.put(BasicLTIConstants.LIS_PERSON_NAME_FAMILY, launchJWT.family_name);
+		if ( launchJWT.sakai_extension != null && isNotEmpty(launchJWT.sakai_extension.sakai_eid) ) {
+			payload.put(BasicLTIConstants.EXT_SAKAI_PROVIDER_EID, launchJWT.sakai_extension.sakai_eid);
+		}
+
+		if ( launchJWT.roles != null ) {
+			StringBuilder roles = new StringBuilder();
+			for (String role : launchJWT.roles) {
+				if ( roles.length() > 0 ) roles.append(',');
+				roles.append(role);
+			}
+			if ( roles.length() > 0 ) payload.put(BasicLTIConstants.ROLES, roles.toString());
+		}
+
+		// TODO: Ask for this in custom...
+		// payload.put(BasicLTIConstants.USER_IMAGE, );
+		// payload.put("ext_email_delivery_preference", );
+
+		if ( launchJWT.sakai_extension != null ) {
+			payload.put("ext_sakai_server", launchJWT.sakai_extension.sakai_server);
+			payload.put("ext_sakai_serverid", launchJWT.sakai_extension.sakai_serverid);
+			payload.put("ext_sakai_role", launchJWT.sakai_extension.sakai_role);
+			payload.put("ext_sakai_academic_session", launchJWT.sakai_extension.sakai_academic_session);
+		}
+
+		// https://www.imsglobal.org/spec/lti/v1p3/#platform-instance-claim
+		// payload.put("ext_lms", );
+
+
+		// We have payload - if this is deep link time, we set things up and display the tool
+		// selections
+		if ( LaunchJWT.MESSAGE_TYPE_DEEP_LINK.equals(launchJWT.message_type) ) {
+			if ( ! ServerConfigurationService.getBoolean("deeplink.provider", true))  {
+				log.warn("DeepLink is Disabled IP={}", ipAddress);
+				response.sendError(HttpServletResponse.SC_FORBIDDEN,
+						"DeepLink is Disabled");
+				return;
+			} else {
+				log.debug("DeepLink setup");
+System.out.println("DeepLink setup");
+				handleDeepLinkSetup(request, response, id_token, payload);
+				return;
+			}
+		}
+
+		// Since this is not deeplink, lets escape any iFrame, with a second post since
+		// we will need to establish a cookie to log the user in.
+		String repost = request.getParameter("repost");
+		if ( isEmpty(repost) ) {
+			handleRepost(request, response);
+			return;
+		}
+
+		// Now we are in the oidc_launch process so we proceed with all the validation
+System.out.println("==== oidc_launch ====");
+		log.debug("==== oidc_launch ====");
+
+		// For a normal launch, the target_link_uri is our guide to what is next
+		String target_link_uri = launchJWT.target_link_uri;
+		if ( isEmpty(target_link_uri) ) {
+			doError(request, response, "plus.target_link_uri.missing", target_link_uri, null);
+			return;
+		}
+
+		String [] pieces = target_link_uri.split("/");
+
+		if ( pieces.length < 1 ) {
+			doError(request, response, "plus.target_link_uri.badformat", target_link_uri, null);
+			return;
+		}
+
+		String tool_id = pieces[pieces.length-1];
+
+		if ( isEmpty(tool_id) ) {
+			doError(request, response, "plus.target_link_uri.badformat", target_link_uri, null);
+			return;
+		}
+		payload.put("tool_id", tool_id);
+
+
+		/*
+		 * If this is true, multiple issuer/clientid/deploymentid/subject users will map to a single
+		 * Sakai user in ths instance based on email address.  This needs to be set to true if
+		 * this Sakai is ever to become an enterprise-wde LMS using the email address as
+		 * SSO without major conversion.  It also means that this Sakai can be behing an SSO or if users
+		 * reset their passwords - they can directly log in with their email addresses and
+		 * see all their sites and history.
+		 *
+		 * If this is true, the user's email address will be their EID across multiple Tenants.
+		 * even though this setting is per-Tenant.  There is no account siloing between the Tenants
+		 * that have this enabled.
+		 */
+		boolean isEmailTrustedConsumer = ! Boolean.FALSE.equals(tenant.getTrustEmail());
+
+		try {
+			invokeProcessors(payload, ProcessingState.beforeValidation);
+
+			Launch launch = validate(payload, launchJWT, tenant);
+
+			invokeProcessors(payload, ProcessingState.afterValidation);
+
+			User user = userFinderOrCreator.findOrCreateUser(payload, false, isEmailTrustedConsumer);
+
+			plusService.connectSubjectAndUser(launch.getSubject(), user);
+
+			invokeProcessors(payload, ProcessingState.afterUserCreation, user);
+
+			// Check if we are loop-backing on the same server, and already logged in as same user
+			Session sess = SessionManager.getCurrentSession();
+			String serverUrl = SakaiBLTIUtil.getOurServerUrl();
+			String ext_sakai_server = (String) payload.get("ext_sakai_server");
+
+			loginUser(ipAddress, user);
+
+			// Re-grab the session
+			sess = SessionManager.getCurrentSession();
+
+			invokeProcessors(payload, ProcessingState.afterLogin, user);
+
+			// This needs to happen after login, when we have a session for the user.
+			userLocaleSetter.setupUserLocale(payload, user, false, isEmailTrustedConsumer);
+
+			userPictureSetter.setupUserPicture(payload, user, false, isEmailTrustedConsumer);
+
+			if ( launch.getContext() != null ) {
+				payload.put("lineitems_url", launch.getContext().getLineItems());
+				payload.put("lineitems_token", launch.getContext().getLineItemsToken());
+
+				payload.put("grade_token", launch.getContext().getGradeToken());
+
+				payload.put("nrps_url", launch.getContext().getContextMemberships());
+				payload.put("nrps_token", launch.getContext().getNrpsToken());
+			}
+
+			Site site = findOrCreateSite(payload);
+
+			plusService.connectContextAndSite(launch.getContext(), site);
+
+			invokeProcessors(payload, ProcessingState.afterSiteCreation, user, site);
+
+			siteEmailPreferenceSetter.setupUserEmailPreferenceForSite(payload, user, site, false);
+
+			site = siteMembershipUpdater.addOrUpdateSiteMembership(payload, false, user, site);
+
+			invokeProcessors(payload, ProcessingState.afterSiteMembership, user, site);
+
+			String contextGuid = (String) payload.get("context_guid");
+			if ( contextGuid != null ) syncSiteMembershipsOnceThenSchedule(contextGuid, site);
+
+			invokeProcessors(payload, ProcessingState.beforeLaunch, user, site);
+
+			// Construct a URL to site or tool
+			StringBuilder url = new StringBuilder();
+			url.append(SakaiBLTIUtil.getOurServerUrl());
+			url.append(ServerConfigurationService.getString("portalPath", "/portal"));
+
+			// Forward to a site
+			if ( "sakai.site".equals(tool_id) ) {
+				url.append("/site/");
+				url.append(site.getId());
+
+			// Forward to a tool
+			} else {
+				String toolPlacementId = addOrCreateTool(payload, user, site);
+
+				// TODO: Think through null considerations for non resoucre link launches
+				plusService.connectLinkAndPlacement(launch.getLink(), toolPlacementId);
+
+				// Continue wth tool oriented URL
+				url.append("/tool-reset/");
+				url.append(toolPlacementId);
+				url.append("?panel=Main");
+			}
+
+System.out.println("forwarding to url="+url.toString());
+			if (log.isDebugEnabled()) {
+				log.debug("url={}", url.toString());
+			}
+
+			response.setContentType("text/html");
+			response.setStatus(HttpServletResponse.SC_FOUND);
+			response.sendRedirect(url.toString());
+
+		} catch (LTIException ltiException) {
+			doError(request, response, ltiException.getErrorKey(), ltiException.getMessage(), ltiException.getCause());
+		}
+
+	}
+
+	// https://www.imsglobal.org/spec/security/v1p0/
+	// https://www.imsglobal.org/spec/security/v1p0/#step-1-third-party-initiated-login
+	// https://openid.net/specs/openid-connect-core-1_0.html#ThirdPartyInitiatedLogin
+	// https://www.imsglobal.org/spec/lti/v1p3/#additional-login-parameters
+	protected void handleOIDCLogin(HttpServletRequest request, HttpServletResponse response, String tenant_guid) throws ServletException, IOException {
+		log.debug("==== oidc_login ====");
+
+		// REQUIRED. The issuer identifier identifying the learning platform.
+		String iss = request.getParameter("iss");
+
+		// REQUIRED. Hint to the Authorization Server about the login identifier the End-User might use to log in. The permitted values will be defined in the host specification.
+		String login_hint = request.getParameter("login_hint");
+
+		// REQUIRED. The actual end-point that should be executed at the end of the OpenID Connect authentication flow.
+		String target_link_uri = request.getParameter("target_link_uri");
+
+		// OPTIONAL. The actual LTI message that is being launched.
+		String lti_message_hint = request.getParameter("lti_message_hint");
+
+		// OPTIONAL. If included, MUST contain the same deployment id that would be passed in the deployment_id claim for the subsequent LTI message launch.
+		String deployment_id = request.getParameter("lti_deployment_id");
+
+		// OPTIONAL. Specifies the client id for the authorization server that should be used to authorize the subsequent LTI message request. This allows for a platform to support multiple registrations from a single issuer, without relying on the initiate_login_uri as a key.
+		String client_id = request.getParameter("client_id");
+
+		// OPTIONAL. May be "_parent" coming soon.
+		String lti_storage_target = request.getParameter("lti_storage_target");
+
+		// Legacy lookup is our tenant_guid from the URL since most LMS's don't send the optional stuff
+		// TODO: Future lookup allows for, iss, client_id, and deployment_id to uniquely define a tenant
+
+		Optional<Tenant> optTenant = tenantRepository.findById(tenant_guid);
+		Tenant tenant = null;
+		if ( optTenant.isPresent() ) {
+			tenant = optTenant.get();
+		}
+
+		if ( tenant == null ) {
+			doError(request, response, "plus.tenant.notfound", tenant_guid, null);
+			return;
+		}
+
+		String browserSig = BasicLTIUtil.getBrowserSignature(request);
+		String stateSig = LTI13Util.sha256(randomUUID + browserSig);
+		Key privateKey = localKeyPair.getPrivate();
+		String seconds = (Instant.now().getEpochSecond()+"");
+		JwtBuilder jwt = Jwts.builder();
+		jwt.claim("internal", stateSig);
+		jwt.claim("time", seconds);
+		jwt.claim("tenant_guid", tenant_guid);
+
+		String jws = jwt.signWith(privateKey).compact();
+
+		String redirect_uri = SakaiBLTIUtil.getOurServerUrl() + "/plus/sakai/oidc_launch";
+		try {
+			URIBuilder redirect = new URIBuilder(tenant.getOidcAuth().trim());
+			redirect.addParameter("scope", "openid");
+			redirect.addParameter("response_type", "id_token");
+			redirect.addParameter("response_mode", "form_post");
+			redirect.addParameter("prompt", "none");
+			redirect.addParameter("nonce", UUID.randomUUID().toString());
+			if ( lti_message_hint != null ) redirect.addParameter("lti_message_hint", lti_message_hint);
+			redirect.addParameter("client_id", tenant.getClientId());
+			redirect.addParameter("login_hint", login_hint);
+			redirect.addParameter("redirect_uri", redirect_uri);
+			redirect.addParameter("state", jws);
+			String redirect_url = redirect.build().toString();
+			response.sendRedirect(redirect_url);
+		} catch (URISyntaxException e) {
+			log.error("Syntax exception building the URL with the params: {}.", e.getMessage());
+		}
+	}
+
+	protected void handleRepost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		log.debug("==== oidc_repost ====");
+		System.out.println("==== oidc_repost ====");
+		StringBuilder r = new StringBuilder();
+		r.append("<form id=\"popform\" method=\"post\" target=\"_blank\" action=\"");
+		r.append(SakaiBLTIUtil.getOurServletPath(request));
+		r.append("\">\n");
+		r.append("<input type=\"hidden\" name=\"repost\" value=\"42\">\n");
+		for (Enumeration e = request.getParameterNames(); e.hasMoreElements(); ) {
+			String key = (String)e.nextElement();
+			String value = request.getParameter(key);
+			r.append("<input type=\"hidden\" name=\"");
+			r.append(key);
+			r.append("\" value=\"");
+			r.append(value);
+			r.append("\">\n");
+		}
+		r.append("<input id=\"repost_submit\" onclick=\"repost_click();\" type=\"submit\" name=\"POP\" value=\"Open Sakai Plus in a New Window\">\n");
+		r.append("</form>\n");
+		r.append("<div id=\"repost_done\" style=\"display: none; border: 1px; margin: 5px; padding 5px;\">\n");
+		r.append("<button type=\"button\" onclick=\"return false;\">\n");
+		r.append("This tool was successfully loaded in a new browser window. Reload the page to access the tool again.\n");
+		r.append("</button></div>\n");
+		r.append("<script>function repost_click() {\n");
+		r.append("document.getElementById(\"repost_submit\").style.display = \"none\";\n");
+		r.append("document.getElementById(\"repost_done\").style.display = \"block\";\n");
+		r.append("}</script>\n");
+		BasicLTIUtil.sendHTMLPage(response, r.toString());
+	}
+
+	protected void invokeProcessors(Map payload, ProcessingState processingState, User user) throws LTIException {
+		invokeProcessors(payload, processingState, user, null, null);
+	}
+
+	protected void invokeProcessors(Map payload,
+									ProcessingState processingState) throws LTIException{
+		invokeProcessors(payload, processingState, null, null, null);
+	}
+
+	protected void invokeProcessors(Map payload,
+									ProcessingState processingState, User user,
+									Site site) throws LTIException{
+		invokeProcessors(payload, processingState, user, site, null);
+	}
+
+	protected void invokeProcessors(Map payload,
+									ProcessingState processingState, User user,
+									Site site, String toolPlacementId) throws LTIException{
+
+		/*
+		 * trustedConsumer is a feature from the old LTI 1.1 Provider servlet that is used when two
+		 * Sakai systems are sharing a database.  This feature is not supported in this servlet
+		 * since the context_id is scoped to Tenant and there can be mutiple tenants
+		 * so trustedConsumer is set to false for all the processors / separate library code.  Most of that
+		 * library code that is called here simply checks if trustedConsumer is true and does nothing.
+		 */
+		boolean trustedConsumer = false;
+
+		if (!bltiProcessors.isEmpty()) {
+			for (BLTIProcessor processor : bltiProcessors) {
+				switch (processingState) {
+
+					case beforeValidation:
+						processor.beforeValidation(payload, trustedConsumer);
+						break;
+					case afterValidation:
+						processor.afterValidation(payload, trustedConsumer);
+						break;
+					case afterUserCreation:
+						processor.afterUserCreation(payload, user);
+						break;
+					case afterLogin:
+						processor.afterLogin(payload, trustedConsumer, user);
+						break;
+					case afterSiteCreation:
+						processor.afterSiteCreation(payload, trustedConsumer, user, site);
+						break;
+					case afterSiteMembership:
+						processor.afterSiteMembership(payload, trustedConsumer, user, site);
+						break;
+					case beforeLaunch:
+						processor.beforeLaunch(payload, trustedConsumer, user, site, toolPlacementId);
+						break;
+					default:
+						log.error("unknown processing state of {}", processingState);
+				}
+			}
+		}
+	}
+
+	protected Launch validate(Map payload, SakaiLaunchJWT launchJWT, Tenant tenant) throws LTIException
+	{
+		  //check parameters
+		  String id_token = (String) payload.get("id_token");
+		  String tenant_guid = (String) payload.get("tenant_guid");
+		  // String lti_message_type = (String) payload.get(BasicLTIConstants.LTI_MESSAGE_TYPE);
+		  // String lti_version = (String) payload.get(BasicLTIConstants.LTI_VERSION);
+		  // String oauth_consumer_key = (String) payload.get("oauth_consumer_key");
+		  String resource_link_id = (String) payload.get(BasicLTIConstants.RESOURCE_LINK_ID);
+		  String user_id = (String) payload.get(BasicLTIConstants.USER_ID);
+		  String context_id = (String) payload.get(BasicLTIConstants.CONTEXT_ID);
+
+		// Begin Validation
+
+		JSONObject header = LTI13JwtUtil.jsonJwtHeader(id_token);
+		String kid = (String) header.get("kid");
+		if ( StringUtils.isBlank(kid) ) {
+			throw new LTIException( "plus.launch.kid.notfound", null, null);
+		}
+
+		// Find the pubic key for the id_token, first check the most recent keyset
+		RSAPublicKey tokenKey = null;
+		String cacheKeySet = tenant.getCacheKeySet();
+		if ( ! StringUtils.isBlank(cacheKeySet) ) {
+			try {
+				tokenKey = LTI13KeySetUtil.getKeyFromKeySetString(kid, cacheKeySet);
+			} catch(Exception e) {
+				// No big thing - just ignore it and move on
+				log.debug("Exception loading kid={} tenant={} keyset={}", kid, tenant_guid, cacheKeySet);
+			}
+		}
+
+		if ( tokenKey == null ) {
+			String oidcKeySet = tenant.getOidcKeySet();
+			if ( StringUtils.isBlank(oidcKeySet) ) {
+				throw new LTIException( "plus.launch.keyset.blank", tenant_guid, null);
+			}
+			log.debug("loading kid={} from keyset={}",kid, oidcKeySet);
+			com.nimbusds.jose.jwk.JWKSet keySet = null;
+			try {
+				keySet =  LTI13KeySetUtil.getKeySetFromUrl(oidcKeySet);
+			} catch(Exception e) {
+				throw new LTIException( "plus.launch.keyset.load.fail", oidcKeySet, null);
+			}
+			log.debug("loaded keyset={} result={}",oidcKeySet, keySet.toString());
+			try {
+				tokenKey = LTI13KeySetUtil.getKeyFromKeySet(kid, keySet);
+			} catch(Exception e) {
+				throw new LTIException( "plus.launch.kid.load.fail", oidcKeySet, null);
+			}
+
+			// Stoere the new keyset in the Tenant
+			if ( keySet != null ) {
+				tenant.setCacheKeySet(keySet.toString());
+				tenantRepository.save(tenant);
+				log.debug("Stored new keyset in tenant");
+			}
+
+		}
+
+		if ( tokenKey == null ) {
+			throw new LTIException( "plus.launch.kid.load.fail", kid, null);
+		}
+
+		// Check the signature on incoming id_token
+		try {
+			// If you want a Chaos Monkey uncomment this :)
+			// Jws<Claims> jwsClaims = Jwts.parser().setAllowedClockSkewSeconds(60).setSigningKey(stateKey).parseClaimsJws(id_token);
+			Jws<Claims> jwsClaims = Jwts.parser().setAllowedClockSkewSeconds(60).setSigningKey(tokenKey).parseClaimsJws(id_token);
+		} catch (Exception e) {
+			throw new LTIException( "plus.launch.id_token.signature", kid, e);
+		}
+
+		Launch launch = null;
+		try {
+			launch = plusService.updateAll(launchJWT, tenant);
+			// tenant_guid is already there
+			if ( launch.getLink() != null ) payload.put("link_guid", launch.getLink().getId());
+			if ( launch.getContext() != null ) payload.put("context_guid", launch.getContext().getId());
+			if ( launch.getSubject() != null ) payload.put("subject_guid", launch.getSubject().getId());
+		} catch (Exception e) {
+			throw new LTIException( "plus.launch.id_token.load.fail", tenant_guid, e);
+		}
+
+		final Session sess = SessionManager.getCurrentSession();
+
+		if (sess == null) {
+			throw new LTIException( "launch.no.session", context_id, null);
+		}
+
+		return launch;
+
+	  }
+
+	private String addOrCreateTool(Map payload, User user, Site site) throws LTIException {
+		// Check if the site already has the tool
+		String toolPlacementId = null;
+		String tool_id = (String) payload.get("tool_id");
+		try {
+			site = SiteService.getSite(site.getId());
+			ToolConfiguration toolConfig = site.getToolForCommonId(tool_id);
+			if(toolConfig != null) {
+				toolPlacementId = toolConfig.getId();
+			}
+		} catch (Exception e) {
+			log.warn(e.getLocalizedMessage(), e);
+			throw new LTIException( "launch.tool.search", "tool_id="+tool_id, e);
+		}
+
+		if (log.isDebugEnabled()) {
+			log.debug("toolPlacementId={}", toolPlacementId);
+		}
+
+		// If tool not in site, and we are a trusted consumer, error
+		// Otherwise, add tool to the site
+		ToolConfiguration toolConfig = null;
+		if(StringUtils.isBlank(toolPlacementId)) {
+			try {
+				SitePage sitePageEdit = null;
+				sitePageEdit = site.addPage();
+				sitePageEdit.setTitle(tool_id);
+
+				toolConfig = sitePageEdit.addTool();
+				toolConfig.setTool(tool_id, ToolManager.getTool(tool_id));
+				toolConfig.setTitle(tool_id);
+
+				Properties propsedit = toolConfig.getPlacementConfig();
+				propsedit.setProperty(BASICLTI_RESOURCE_LINK,  (String) payload.get(BasicLTIConstants.RESOURCE_LINK_ID));
+				pushAdvisor();
+				try {
+					SiteService.save(site);
+					log.info("Tool added, tool_id={}, siteId={}", tool_id, site.getId());
+				} catch (Exception e) {
+					throw new LTIException( "launch.site.save", "tool_id="+tool_id + ", siteId="+site.getId(), e);
+				} finally {
+					popAdvisor();
+				}
+				toolPlacementId = toolConfig.getId();
+
+			} catch (Exception e) {
+				throw new LTIException( "launch.tool.add", "tool_id="+tool_id + ", siteId="+site.getId(), e);
+			}
+		}
+
+		// Get ToolConfiguration for tool if not already setup
+		if(toolConfig == null){
+			toolConfig =  site.getToolForCommonId(tool_id);
+		}
+
+		// Check user has access to this tool in this site
+		if(!ToolManager.isVisible(site, toolConfig)) {
+			log.warn("Not allowed to access tool user_id={} site={} tool={}", user.getId(), site.getId(), tool_id);
+			throw new LTIException( "launch.site.tool.denied", "user_id=" + user.getId() + " site="+ site.getId() + " tool=" + tool_id, null);
+
+		}
+		return toolPlacementId;
+	}
+
+	protected Site findOrCreateSite(Map payload) throws LTIException {
+
+		String context_guid = (String) payload.get("context_guid");
+		String tenant_guid = (String) payload.get("tenant_guid");
+		String siteId = context_guid;
+
+		if (log.isDebugEnabled()) {
+			log.debug("siteId={}", siteId);
+		}
+
+		final String context_title_orig = (String) payload.get(BasicLTIConstants.CONTEXT_TITLE);
+		final String context_label = (String) payload.get(BasicLTIConstants.CONTEXT_LABEL);
+
+		// Site title is editable; cannot but null/empty after HTML stripping, and cannot exceed max length
+		String context_title = ComponentManager.get(FormattedText.class).stripHtmlFromText(context_title_orig, true, true);
+		SiteTitleValidationStatus status = SiteService.validateSiteTitle(context_title_orig, context_title);
+
+		if (SiteTitleValidationStatus.STRIPPED_TO_EMPTY.equals(status)) {
+			log.warn("Provided context_title is empty after HTML stripping: {}", context_title_orig);
+		} else if (SiteTitleValidationStatus.EMPTY.equals(status)) {
+			log.warn("Provided context_title is empty after trimming: {}", context_title_orig);
+		} else if (SiteTitleValidationStatus.TOO_LONG.equals(status)) {
+			log.warn("Provided context_title is longer than max site title length of {}: {}", SITE_TITLE_MAX_LENGTH, context_title_orig);
+		}
+
+		Site site = null;
+
+		// Get the site if it exists
+		try {
+			site = SiteService.getSite(siteId);
+			updateSiteDetailsIfChanged(site, context_title, context_label);
+			return site;
+		} catch (Exception e) {
+			if (log.isDebugEnabled()) {
+				log.debug(e.getLocalizedMessage(), e);
+			}
+		}
+
+		// If site does not exist, create the site
+		pushAdvisor();
+		try {
+			String sakai_type = "project";
+
+			// BLTI-154. If an autocreation site template has been specced in sakai.properties, use it.
+			String autoSiteTemplateId = ServerConfigurationService.getString("plus.provider.autositetemplate", null);
+
+			boolean templateSiteExists = SiteService.siteExists(autoSiteTemplateId);
+
+			if(!templateSiteExists) {
+				log.warn("A template site id was specced ({}) but no site with this id exists. A default lti site will be created instead.", autoSiteTemplateId);
+			}
+
+			if(autoSiteTemplateId == null || !templateSiteExists) {
+				//BLTI-151 If the new site type has been specified in sakai.properties, use it.
+				sakai_type = ServerConfigurationService.getString("basiclti.provider.newsitetype", null);
+				if(StringUtils.isBlank(sakai_type)) {
+					// It wasn't specced in the props. Test for the ims course context type.
+					final String context_type = (String) payload.get(BasicLTIConstants.CONTEXT_TYPE);
+					if (BasicLTIUtil.equalsIgnoreCase(context_type, "course")) {
+						sakai_type = "course";
+					} else {
+						sakai_type = BasicLTIConstants.NEW_SITE_TYPE;
+					}
+				}
+				site = SiteService.addSite(siteId, sakai_type);
+				site.setType(sakai_type);
+			} else {
+				Site autoSiteTemplate = SiteService.getSite(autoSiteTemplateId);
+				site = SiteService.addSite(siteId, autoSiteTemplate);
+			}
+
+			if (BasicLTIUtil.isNotBlank(context_title)) {
+				site.setTitle(context_title);
+			}
+			if (BasicLTIUtil.isNotBlank(context_label)) {
+				site.setShortDescription(context_label);
+			}
+			site.setJoinable(false);
+			site.setPublished(true);
+			site.setPubView(false);
+
+			site.getPropertiesEdit().addProperty(PlusService.PLUS_PROPERTY, "true");
+
+			try {
+				SiteService.save(site);
+				log.info("Created  site={} label={} type={} title={}", siteId, context_label, sakai_type, context_title);
+			} catch (Exception e) {
+				throw new LTIException("launch.site.save", "siteId=" + siteId, e);
+			}
+
+		} catch (Exception e) {
+			throw new LTIException("launch.create.site", "siteId=" + siteId, e);
+		} finally {
+			popAdvisor();
+		}
+
+		// Now lets retrieve that new site!
+		try {
+			return SiteService.getSite(site.getId());
+		} catch (IdUnusedException e) {
+			throw new LTIException( "launch.site.invalid", "siteId="+siteId, e);
+
+		}
+	}
+
+	private final void updateSiteDetailsIfChanged(Site site, String context_title, String context_label) {
+
+		boolean changed = false;
+
+		if (BasicLTIUtil.isNotBlank(context_title) && !context_title.equals(site.getTitle())) {
+			site.setTitle(context_title);
+			changed = true;
+		}
+
+		if (BasicLTIUtil.isNotBlank(context_label) && !context_label.equals(site.getShortDescription())) {
+			site.setShortDescription(context_label);
+			changed = true;
+		}
+
+		String plus_property = site.getProperties().getProperty(PlusService.PLUS_PROPERTY);
+		if ( ! "true".equals(plus_property) ) {
+			site.getPropertiesEdit().addProperty(PlusService.PLUS_PROPERTY, "true");
+			changed = true;
+		}
+
+		if(changed) {
+			try {
+				SiteService.save(site);
+				log.info("Updated  site={} title={} label={}", site.getId(), context_title, context_label);
+			} catch (Exception e) {
+				log.warn("Failed to update site title and/or label");
+			}
+		}
+	}
+
+	private void loginUser(String ipAddress, User user) {
+		Session sess = SessionManager.getCurrentSession();
+		UsageSessionService.login(user.getId(), user.getEid(), ipAddress, null, UsageSessionService.EVENT_LOGIN_WS);
+		sess.setUserId(user.getId());
+		sess.setUserEid(user.getEid());
+	}
+
+
+	public void destroy() {
+
+	}
+
+	// https://www.imsglobal.org/spec/lti-dl/v2p0
+	private void handleDeepLinkInstall(HttpServletRequest request, HttpServletResponse response, SakaiLaunchJWT launchJWT, String payloadStr)
+		throws ServletException, IOException
+	{
+
+		String allowedToolsConfig = ServerConfigurationService.getString("plus.allowedtools", "");
+		String[] allowedTools = allowedToolsConfig.split(":");
+		List<String> allowedToolsList = Arrays.asList(allowedTools);
+
+		String tool_id = (String) request.getParameter("install");
+		if ( tool_id == null ) {
+			doError(request, response, "launch.tool.missing", tool_id, null);
+			return;
+		}
+
+		// TODO: Should we make it so we can turn off the sakai.site
+		String title = null;
+		if ( tool_id.equals("sakai.site") ) {
+			title = ServerConfigurationService.getString("plus.site.title", rb.getString("plus.site.title"));
+		}  else {
+
+			if ( ! allowedToolsList.contains(tool_id) ) {
+				doError(request, response, "launch.tool.notallowed", tool_id, null);
+				return;
+			}
+			final Tool toolCheck = ToolManager.getTool(tool_id);
+			if ( toolCheck == null) {
+				doError(request, response, "launch.tool.notfound", tool_id, null);
+				return;
+			}
+			title = toolCheck.getTitle();
+		}
+
+		// Parse and verify the payload
+		Key stateKey = localKeyPair.getPublic();
+		// Chaos Monkey : stateKey = LTI13Util.generateKeyPair().getPublic();
+		Claims claims = null;
+		try {
+			Jws<Claims> jws = Jwts.parser().setAllowedClockSkewSeconds(600).setSigningKey(stateKey).parseClaimsJws(payloadStr);
+			claims = jws.getBody();
+		} catch (io.jsonwebtoken.security.SignatureException e) {
+			doError(request, response, "plus.payload.state.signature", null, null);
+			return;
+		}
+
+		// TODO: Double check the browser signature
+
+		// Load tenant and make sure it matches the Launch
+		String tenant_guid = (String) claims.get("tenant_guid");
+
+		String tool_launch = SakaiBLTIUtil.getOurServerUrl() + "/plus/sakai/" + tool_id;
+
+		// Build the reponse
+		org.tsugi.deeplink.objects.DeepLinkResponse dlr = new org.tsugi.deeplink.objects.DeepLinkResponse();
+
+		LtiResourceLink ltiResourceLink = new LtiResourceLink();
+		ltiResourceLink.title = title;
+		ltiResourceLink.url = tool_launch;
+		ltiResourceLink.setWindowTarget("_blank");
+		dlr.content_items.add(ltiResourceLink);
+		if ( launchJWT.deep_link != null && isNotEmpty(launchJWT.deep_link.data) ) {
+			dlr.data = launchJWT.deep_link.data;
+		}
+		dlr.deployment_id = launchJWT.deployment_id;
+		dlr.audience = launchJWT.issuer;
+		String deep_link_return_url = launchJWT.deep_link.deep_link_return_url;
+
+		String dlrs = JacksonUtil.prettyPrint(dlr);
+
+		KeyPair kp = SakaiKeySetUtil.getCurrent();
+		Key privateKey = kp.getPrivate();
+		Key publicKey = kp.getPublic();
+		if ( privateKey == null | publicKey == null ) {
+			doError(request, response, "error.no.pki", null, null);
+			return;
+		}
+
+		String kid = LTI13KeySetUtil.getPublicKID(publicKey);
+
+		String jws = Jwts.builder().setHeaderParam("kid", kid).
+			setPayload(dlrs).signWith(privateKey).compact();
+
+		// TODO: More elegant
+		String launch_error = "Error Launching";
+		boolean dodebug = true;
+		String state = null;
+		String html = SakaiBLTIUtil.getJwsHTMLForm(deep_link_return_url, "JWT", jws, dlrs, state, launch_error, dodebug);
+
+
+		BasicLTIUtil.sendHTMLPage(response, html);
+	}
+
+	private void handleDeepLinkSetup(HttpServletRequest request, HttpServletResponse response, String id_token, Map<String,String> payload)
+		throws ServletException, IOException
+	{
+
+		String allowedToolsConfig = ServerConfigurationService.getString("plus.allowedtools", "");
+		String[] allowedTools = allowedToolsConfig.split(":");
+		List<String> allowedToolsList = Arrays.asList(allowedTools);
+
+		ArrayList<Tool> tools = new ArrayList<Tool>();
+		for (String toolId : allowedToolsList) {
+			Tool theTool = ToolManager.getTool(toolId);
+			if ( theTool == null ) continue;
+			tools.add(theTool);
+		}
+
+		String browserSig = BasicLTIUtil.getBrowserSignature(request);
+		String stateSig = LTI13Util.sha256(randomUUID + browserSig);
+		Key privateKey = localKeyPair.getPrivate();
+		String seconds = (Instant.now().getEpochSecond()+"");
+		JwtBuilder jwt = Jwts.builder();
+		jwt.claim("_internal", stateSig);
+		jwt.claim("_time", seconds);
+		for (Map.Entry mapElement : payload.entrySet()) {
+			jwt.claim((String)mapElement.getKey(), (String) mapElement.getValue());
+		}
+
+		String payloadJWT = jwt.signWith(privateKey).compact();
+
+		request.setAttribute("tools",tools);
+		request.setAttribute("id_token",id_token);
+		request.setAttribute("payload", payloadJWT);
+		request.setAttribute("details_text",rb.getString("plus.deeplink.details"));
+		request.setAttribute("site_title",ServerConfigurationService.getString("plus.site.title", rb.getString("plus.site.title")));
+		request.setAttribute("site_description",ServerConfigurationService.getString("plus.site.description", rb.getString("plus.site.description")));
+
+		// Forward to the JSP
+		ServletContext sc = this.getServletContext();
+		RequestDispatcher rd = sc.getRequestDispatcher("/deeplink.jsp");
+		try {
+			rd.forward(request, response);
+		}
+		catch (Exception e) {
+			log.error(e.getMessage(), e);
+		}
+	}
+
+	// http://localhost:8080/plus/sakai/canvas-config.json?guid=123456
+	// https://canvas.instructure.com/doc/api/file.navigation_tools.html
+	private void handleCanvasConfig(HttpServletRequest request, HttpServletResponse response)
+		throws IOException
+	{
+		String guid = request.getParameter("guid");
+
+		Optional<Tenant> optTenant = tenantRepository.findById(guid);
+		Tenant tenant = null;
+		if ( optTenant.isPresent() ) {
+			tenant = optTenant.get();
+		}
+
+		if ( tenant == null ) {
+			doError(request, response, "plus.tenant.notfound", guid, null);
+			return;
+		}
+		JSONObject canvas = canvasDescriptor();
+
+		String serverUrl = null;
+		String host = null;
+		String domain = null;
+		try {
+			serverUrl = SakaiBLTIUtil.getOurServerUrl();
+			URL netUrl = new URL(serverUrl);
+			host = netUrl.getHost();
+			domain = ServerConfigurationService.getString("canvas.config.domain", host);
+		} catch (MalformedURLException e) {
+			doError(request, response, "canvas.error.missing.domain", e.getMessage(), e.getCause());
+			return;
+		}
+
+		String title = tenant.getTitle();
+		if ( isEmpty(title) ) {
+			title = ServerConfigurationService.getString("plus.default.title", rb.getString("plus.default.title"));
+		}
+		String description = tenant.getDescription();
+		if ( isEmpty(description) ) {
+			description = ServerConfigurationService.getString("plus.default.description", rb.getString("plus.default.description"));
+		}
+		canvas.put("title", title);
+		canvas.put("description", description);
+		canvas.put("oidc_initiation_url", serverUrl + "/plus/sakai/oidc_login/" + guid);
+		canvas.put("redirect_uris", serverUrl + "/plus/sakai/oidc_launch");
+		canvas.put("oidc_redirect_uris", serverUrl + "/plus/sakai/oidc_launch");
+		canvas.put("target_link_uri", serverUrl + "/plus/sakai/oidc_launch");
+		canvas.put("public_jwk_url", serverUrl + "/imsblis/lti13/keyset");
+		JSONArray extensions = (JSONArray) canvas.get("extensions");
+		JSONObject ext0 = (JSONObject) extensions.get(0);
+		ext0.put("tool_id", guid);
+		ext0.put("domain", domain);
+		JSONObject settings = (JSONObject) ext0.get("settings");
+		settings.put("icon_url", serverUrl + (String) settings.get("icon_url") );
+		JSONArray placements = (JSONArray) settings.get("placements");
+
+		for ( int i=0; i < placements.size(); i++) {
+			JSONObject placement = (JSONObject) placements.get(i);
+			placement.put("text", title);
+			placement.put("icon_url", serverUrl + (String) placement.get("icon_url") );
+			placement.put("target_link_uri", serverUrl + "/plus/sakai/" + (String) placement.get("target_link_uri") );
+		}
+
+		PrintWriter out = response.getWriter();
+		response.setContentType("application/json");
+		response.setCharacterEncoding("UTF-8");
+		out.print(canvas.toString());
+		out.flush();
+	}
+
+	public JSONObject canvasDescriptor()
+		throws java.io.IOException
+	{
+		InputStream stream = getServletContext().getResourceAsStream("/WEB-INF/descriptor.json");
+		String text = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+		JSONObject canvas = (JSONObject) JSONValue.parse(text);
+		return canvas;
+	}
+
+	private void syncSiteMembershipsOnceThenSchedule(String contextGuid, Site site) throws LTIException {
+
+		log.debug("synchSiteMembershipsOnceThenSchedule");
+
+		plusService.syncSiteMemberships(contextGuid, site);
+
+		// TODO: Schedule :)
+
+	}
+
+// vim: tabstop=4 noet
+
+}
+

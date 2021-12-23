@@ -123,5 +123,9 @@
             <artifactId>xstream</artifactId>
             <version>1.4.18</version>
         </dependency>
+        <dependency>
+            <groupId>org.sakaiproject.plus</groupId>
+            <artifactId>sakai-plus-api</artifactId>
+         </dependency>
     </dependencies>
 </project>

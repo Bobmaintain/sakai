@@ -274,7 +274,7 @@ public abstract class BaseHibernateManager extends HibernateDaoSupport {
         return createNewAssignment(gradebookId, null, name, points, dueDate, isNotCounted, isReleased, isExtraCredit, sortOrder, null);
     }
 
-    public Long createAssignmentForCategory(final Long gradebookId, final Long categoryId, final String name, final Double points, final Date dueDate, final Boolean isNotCounted, 
+    public Long createAssignmentForCategory(final Long gradebookId, final Long categoryId, final String name, final Double points, final Date dueDate, final Boolean isNotCounted,
            final Boolean isReleased, final Boolean isExtraCredit, final Integer categorizedSortOrder)
     throws ConflictingAssignmentNameException, StaleObjectModificationException, IllegalArgumentException
     {
@@ -287,15 +287,16 @@ public abstract class BaseHibernateManager extends HibernateDaoSupport {
     }
 
     private Long createNewAssignment(final Long gradebookId, final Long categoryId, final String name, final Double points, final Date dueDate, final Boolean isNotCounted,
-            final Boolean isReleased, final Boolean isExtraCredit, final Integer sortOrder, final Integer categorizedSortOrder) 
+            final Boolean isReleased, final Boolean isExtraCredit, final Integer sortOrder, final Integer categorizedSortOrder)
                     throws ConflictingAssignmentNameException, StaleObjectModificationException
     {
+
         final GradebookAssignment asn = prepareNewAssignment(name, points, dueDate, isNotCounted, isReleased, isExtraCredit, sortOrder, categorizedSortOrder);
 
         return saveNewAssignment(gradebookId, categoryId, asn);
     }
 
-    private GradebookAssignment prepareNewAssignment(final String name, final Double points, final Date dueDate, final Boolean isNotCounted, final Boolean isReleased, 
+    private GradebookAssignment prepareNewAssignment(final String name, final Double points, final Date dueDate, final Boolean isNotCounted, final Boolean isReleased,
             final Boolean isExtraCredit, final Integer sortOrder, final Integer categorizedSortOrder)
     {
         // name cannot contain these special chars as they are reserved for special columns in import/export

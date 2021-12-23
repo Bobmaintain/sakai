@@ -3,13 +3,10 @@ package org.tsugi.ags2.objects;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.annotation.Generated;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
-@Generated("com.googlecode.jsonschema2pojo")
 
 /* application/vnd.ims.lis.v1.score+json
 	{
@@ -23,6 +20,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 	}
  */
 public class Score extends org.tsugi.jackson.objects.JacksonBase {
+
+	public static final String MIME_TYPE = "application/vnd.ims.lis.v1.score+json";
 
 	/**
 	 * the user has not started the activity, or the activity has been reset for that student.
@@ -48,7 +47,6 @@ public class Score extends org.tsugi.jackson.objects.JacksonBase {
 	 * the user has completed the activity associated with the line item.
 	 */
 	public static final String ACTIVITY_COMPLETED = "Completed";	
-
 
 	/**
 	 * The grading process is completed; the score value, if any, represents the current Final Grade
