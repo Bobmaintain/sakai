@@ -465,63 +465,9 @@ System.out.println("===> request "+request.getPathInfo());
 
 		// Store this all in payload for future use and to share some of the
 		// processing code between LTI 1.1 and Advantage
-		Map<String, String> payload = new HashMap<String,String>();
+		Map<String, String> payload = plusService.getPayloadFromLaunchJWT(tenant, launchJWT);
 		payload.put("tenant_guid", tenant_guid);
 		payload.put("id_token", id_token);
-		payload.put("issuer", launchJWT.issuer);
-		payload.put("client_id", launchJWT.audience); // Note name change
-		payload.put("deployment_id", launchJWT.deployment_id);
-		payload.put("oidc_token", tenant.getOidcToken());
-		payload.put("oidc_audience", tenant.getOidcAudience());
-		payload.put(BasicLTIConstants.LTI_MESSAGE_TYPE, launchJWT.message_type);
-
-		if ( launchJWT.context != null ) {
-			if ( launchJWT.context.title != null ) payload.put(BasicLTIConstants.CONTEXT_TITLE, launchJWT.context.title);
-			if ( launchJWT.context.label != null ) payload.put(BasicLTIConstants.CONTEXT_LABEL, launchJWT.context.label);
-		}
-
-		// https://www.imsglobal.org/spec/lti/v1p3/#resource-link-claim
-		String linkId = launchJWT.resource_link != null ? launchJWT.resource_link.id : null;
-		if ( linkId != null ) {
-			payload.put(BasicLTIConstants.RESOURCE_LINK_ID, linkId);
-			if ( launchJWT.resource_link.title != null ) payload.put(BasicLTIConstants.RESOURCE_LINK_TITLE, launchJWT.resource_link.title);
-			if ( launchJWT.resource_link.description != null ) payload.put(BasicLTIConstants.RESOURCE_LINK_DESCRIPTION, launchJWT.resource_link.description);
-		}
-
-		// User data
-		payload.put(BasicLTIConstants.USER_ID, launchJWT.subject);
-		payload.put(BasicLTIConstants.LAUNCH_PRESENTATION_LOCALE, launchJWT.locale);
-		payload.put(BasicLTIConstants.LIS_PERSON_CONTACT_EMAIL_PRIMARY, launchJWT.email);
-		payload.put(BasicLTIConstants.LIS_PERSON_NAME_GIVEN, launchJWT.given_name);
-		// payload.put(BasicLTIConstants.LIS_PERSON_NAME_MIDDLE, launchJWT.middle_name);
-		payload.put(BasicLTIConstants.LIS_PERSON_NAME_FAMILY, launchJWT.family_name);
-		if ( launchJWT.sakai_extension != null && isNotEmpty(launchJWT.sakai_extension.sakai_eid) ) {
-			payload.put(BasicLTIConstants.EXT_SAKAI_PROVIDER_EID, launchJWT.sakai_extension.sakai_eid);
-		}
-
-		if ( launchJWT.roles != null ) {
-			StringBuilder roles = new StringBuilder();
-			for (String role : launchJWT.roles) {
-				if ( roles.length() > 0 ) roles.append(',');
-				roles.append(role);
-			}
-			if ( roles.length() > 0 ) payload.put(BasicLTIConstants.ROLES, roles.toString());
-		}
-
-		// TODO: Ask for this in custom...
-		// payload.put(BasicLTIConstants.USER_IMAGE, );
-		// payload.put("ext_email_delivery_preference", );
-
-		if ( launchJWT.sakai_extension != null ) {
-			payload.put("ext_sakai_server", launchJWT.sakai_extension.sakai_server);
-			payload.put("ext_sakai_serverid", launchJWT.sakai_extension.sakai_serverid);
-			payload.put("ext_sakai_role", launchJWT.sakai_extension.sakai_role);
-			payload.put("ext_sakai_academic_session", launchJWT.sakai_extension.sakai_academic_session);
-		}
-
-		// https://www.imsglobal.org/spec/lti/v1p3/#platform-instance-claim
-		// payload.put("ext_lms", );
-
 
 		// We have payload - if this is deep link time, we set things up and display the tool
 		// selections
@@ -572,7 +518,6 @@ System.out.println("==== oidc_launch ====");
 			return;
 		}
 		payload.put("tool_id", tool_id);
-
 
 		/*
 		 * If this is true, multiple issuer/clientid/deploymentid/subject users will map to a single

@@ -32,15 +32,17 @@ import org.sakaiproject.user.api.UserDirectoryService;
 import org.sakaiproject.user.api.UserNotDefinedException;
 import org.sakaiproject.plus.api.service.PlusService;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PlusEventObserver implements Observer {
 
-    @Setter private EventTrackingService eventTrackingService;
-    @Setter private UserDirectoryService userDirectoryService;
-    @Setter private PlusService plusService;
+    @Autowired private EventTrackingService eventTrackingService;
+    @Autowired private UserDirectoryService userDirectoryService;
+    @Autowired private PlusService plusService;
 
     public void init() {
         eventTrackingService.addLocalObserver(this);

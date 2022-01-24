@@ -42,6 +42,12 @@ import org.sakaiproject.time.api.UserTimeService;
 import org.sakaiproject.tool.api.SessionManager;
 import org.sakaiproject.user.api.UserDirectoryService;
 import org.sakaiproject.service.gradebook.shared.GradebookService;
+import org.sakaiproject.lti.api.SiteEmailPreferenceSetter;
+import org.sakaiproject.lti.api.SiteMembershipUpdater;
+import org.sakaiproject.lti.api.SiteMembershipsSynchroniser;
+import org.sakaiproject.lti.api.UserFinderOrCreator;
+import org.sakaiproject.lti.api.UserLocaleSetter;
+import org.sakaiproject.lti.api.UserPictureSetter;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -165,4 +171,30 @@ public class PlusTestConfiguration {
     public GradebookService gradebookService() {
         return mock(GradebookService.class);
     }
+
+    @Bean(name = "org.sakaiproject.lti.api.UserFinderOrCreator")
+    public UserFinderOrCreator userFinderOrCreator() {
+        return mock(UserFinderOrCreator.class);
+    }
+
+    @Bean(name = "org.sakaiproject.lti.api.UserLocaleSetter")
+    public UserLocaleSetter userLocaleSetter() {
+        return mock(UserLocaleSetter.class);
+    }
+
+    @Bean(name = "org.sakaiproject.lti.api.UserPictureSetter")
+    public UserPictureSetter userPictureSetter() {
+        return mock(UserPictureSetter.class);
+    }
+
+    @Bean(name = "org.sakaiproject.lti.api.SiteEmailPreferenceSetter")
+    public SiteEmailPreferenceSetter siteEmailPreferenceSetter() {
+        return mock(SiteEmailPreferenceSetter.class);
+    }
+
+    @Bean(name = "org.sakaiproject.lti.api.SiteMembershipUpdater")
+    public SiteMembershipUpdater siteMembershipUpdater() {
+        return mock(SiteMembershipUpdater.class);
+    }
+
 }

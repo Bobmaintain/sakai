@@ -16,6 +16,8 @@
 
 package org.sakaiproject.plus.api.service;
 
+import java.util.Map;
+
 import org.sakaiproject.lti.api.LTIException;
 
 import org.sakaiproject.plus.api.Launch;
@@ -43,6 +45,11 @@ public interface PlusService {
 	 * Note whether or not a Site has Plus enabled
 	 */
 	boolean enabled(Site site);
+
+	/*
+	 * Get a payload map from a LaunchJWT
+	 */
+	Map<String,String> getPayloadFromLaunchJWT(Tenant tenant, LaunchJWT launchJWT);
 
 	/*
 	 * Handle the initial launch - creating objects as needed (a.k.a. The BIG LEFT JOIN)

@@ -30,6 +30,8 @@ import java.security.Key;
 import java.security.KeyPair;
 
 import org.apache.commons.lang3.StringUtils;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,11 +65,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import org.tsugi.http.HttpClientUtil;
 
+import org.tsugi.basiclti.BasicLTIConstants;
+
+import org.sakaiproject.lti.api.UserFinderOrCreator;
+import org.sakaiproject.lti.api.UserLocaleSetter;
+import org.sakaiproject.lti.api.UserPictureSetter;
+import org.sakaiproject.lti.api.SiteEmailPreferenceSetter;
+import org.sakaiproject.lti.api.SiteMembershipUpdater;
+
+
 import org.tsugi.nrps.objects.Member;
 import org.tsugi.oauth2.objects.AccessToken;
-import org.tsugi.lti13.objects.LaunchJWT;
 import org.tsugi.ags2.objects.LineItem;
 import org.tsugi.ags2.objects.Score;
+import org.tsugi.lti13.objects.LaunchJWT;
 
 import org.sakaiproject.basiclti.util.SakaiKeySetUtil;
 import org.tsugi.lti13.LTI13AccessTokenUtil;
@@ -93,7 +104,12 @@ public class PlusServiceImpl implements PlusService {
 	@Autowired private LinkRepository linkRepository;
 	@Autowired private LineItemRepository lineItemRepository;
 	@Autowired private ScoreRepository scoreRepository;
-    @Autowired private GradebookService gradebookService;
+	@Autowired private GradebookService gradebookService;
+	@Autowired private SiteMembershipUpdater siteMembershipUpdater;
+	@Autowired private SiteEmailPreferenceSetter siteEmailPreferenceSetter;
+	@Autowired private UserFinderOrCreator userFinderOrCreator;
+	@Autowired private UserLocaleSetter userLocaleSetter;
+	@Autowired private UserPictureSetter userPictureSetter;
 
 	/*
 	 * Indicate if plus is enabled on this system
@@ -164,28 +180,7 @@ public class PlusServiceImpl implements PlusService {
 		boolean changed = false;
 		Subject subject = null;
 		if ( subjectId != null ) {
-			subject = subjectRepository.findBySubjectAndTenant(subjectId, tenant);
-			if ( subject == null ) {
-				subject = new Subject();
-				subject.setSubject(subjectId);
-				subject.setTenant(tenant);
-				subject.setEmail(launchJWT.email);
-				subject.setDisplayName(launchJWT.getDisplayName());
-				changed = true;
-			} else {
-				if ( StringUtils.compare(subject.getEmail(), launchJWT.email) != 0 ) {
-					subject.setEmail(launchJWT.email);
-					changed = true;
-				}
-				if ( StringUtils.compare(subject.getDisplayName(), launchJWT.getDisplayName() ) != 0 ) {
-					subject.setDisplayName(launchJWT.getDisplayName());
-					changed = true;
-				}
-			}
-			if ( changed ) {
-				subjectRepository.save(subject);
-			}
-			launch.subject = subject;
+			launch.subject = createOrUpdateSubject(tenant, subjectId, launchJWT);
 		}
 
 		Context context = null;
@@ -255,6 +250,102 @@ public class PlusServiceImpl implements PlusService {
 		return launch;
 	}
 
+	public Subject createOrUpdateSubject(Tenant tenant, String subjectId, LaunchJWT launchJWT)
+	{
+		Subject subject = null;
+		boolean changed = false;
+		if ( subjectId != null ) {
+			subject = subjectRepository.findBySubjectAndTenant(subjectId, tenant);
+			if ( subject == null ) {
+				subject = new Subject();
+				subject.setSubject(subjectId);
+				subject.setTenant(tenant);
+				subject.setEmail(launchJWT.email);
+				subject.setDisplayName(launchJWT.getDisplayName());
+				changed = true;
+			} else {
+				if ( StringUtils.compare(subject.getEmail(), launchJWT.email) != 0 ) {
+					subject.setEmail(launchJWT.email);
+					changed = true;
+				}
+				if ( StringUtils.compare(subject.getDisplayName(), launchJWT.getDisplayName() ) != 0 ) {
+					subject.setDisplayName(launchJWT.getDisplayName());
+					changed = true;
+				}
+			}
+			if ( changed ) {
+				subjectRepository.save(subject);
+			}
+		}
+		return subject;
+	}
+
+	public Map<String,String> getPayloadFromLaunchJWT(Tenant tenant, LaunchJWT launchJWT)
+	{
+		// Store this all in payload for future use and to share some of the
+		// processing code between LTI 1.1 and Advantage
+		Map<String, String> payload = new TreeMap<String,String>();
+		payload.put("issuer", launchJWT.issuer);
+		payload.put("client_id", launchJWT.audience); // Note name change
+		payload.put("deployment_id", launchJWT.deployment_id);
+		payload.put("oidc_token", tenant.getOidcToken());
+		payload.put("oidc_audience", tenant.getOidcAudience());
+		payload.put(BasicLTIConstants.LTI_MESSAGE_TYPE, launchJWT.message_type);
+
+		if ( launchJWT.context != null ) {
+			if ( launchJWT.context.title != null ) payload.put(BasicLTIConstants.CONTEXT_TITLE, launchJWT.context.title);
+			if ( launchJWT.context.label != null ) payload.put(BasicLTIConstants.CONTEXT_LABEL, launchJWT.context.label);
+		}
+
+		// https://www.imsglobal.org/spec/lti/v1p3/#resource-link-claim
+		String linkId = launchJWT.resource_link != null ? launchJWT.resource_link.id : null;
+		if ( linkId != null ) {
+			payload.put(BasicLTIConstants.RESOURCE_LINK_ID, linkId);
+			if ( launchJWT.resource_link.title != null ) payload.put(BasicLTIConstants.RESOURCE_LINK_TITLE, launchJWT.resource_link.title);
+			if ( launchJWT.resource_link.description != null ) payload.put(BasicLTIConstants.RESOURCE_LINK_DESCRIPTION, launchJWT.resource_link.description);
+		}
+
+		// User data
+		payload.put(BasicLTIConstants.USER_ID, launchJWT.subject);
+		payload.put(BasicLTIConstants.LAUNCH_PRESENTATION_LOCALE, launchJWT.locale);
+		payload.put(BasicLTIConstants.LIS_PERSON_CONTACT_EMAIL_PRIMARY, launchJWT.email);
+		payload.put(BasicLTIConstants.LIS_PERSON_NAME_GIVEN, launchJWT.given_name);
+		payload.put(BasicLTIConstants.LIS_PERSON_NAME_FAMILY, launchJWT.family_name);
+		// payload.put(BasicLTIConstants.LIS_PERSON_NAME_MIDDLE, launchJWT.middle_name);
+
+		if ( launchJWT.roles != null ) {
+			StringBuilder roles = new StringBuilder();
+			for (String role : launchJWT.roles) {
+				if ( roles.length() > 0 ) roles.append(',');
+				roles.append(role);
+			}
+			if ( roles.length() > 0 ) payload.put(BasicLTIConstants.ROLES, roles.toString());
+		}
+
+		// TODO: Ask for this in custom...
+		// payload.put(BasicLTIConstants.USER_IMAGE, );
+		// payload.put("ext_email_delivery_preference", );
+
+		// Because basiclti-common can't (yet) be in shared
+		if ( launchJWT instanceof SakaiLaunchJWT ) {
+			SakaiLaunchJWT sakaiLaunchJWT = (SakaiLaunchJWT) launchJWT;
+			if ( sakaiLaunchJWT.sakai_extension != null ) {
+				if ( isNotEmpty(sakaiLaunchJWT.sakai_extension.sakai_eid) ) {
+					payload.put(BasicLTIConstants.EXT_SAKAI_PROVIDER_EID, sakaiLaunchJWT.sakai_extension.sakai_eid);
+				}
+				payload.put("ext_sakai_server", sakaiLaunchJWT.sakai_extension.sakai_server);
+				payload.put("ext_sakai_serverid", sakaiLaunchJWT.sakai_extension.sakai_serverid);
+				payload.put("ext_sakai_role", sakaiLaunchJWT.sakai_extension.sakai_role);
+				payload.put("ext_sakai_academic_session", sakaiLaunchJWT.sakai_extension.sakai_academic_session);
+			}
+		}
+
+		// https://www.imsglobal.org/spec/lti/v1p3/#platform-instance-claim
+		// payload.put("ext_lms", );
+
+		return payload;
+	}
+
 	/*
 	 * Make sure the Subject knows about the chosen user
 	 */
@@ -265,11 +356,11 @@ public class PlusServiceImpl implements PlusService {
 		  throw new LTIException( "plus.plusservice.null.parameters", "subject or user", null);
 		}
 
-		if ( StringUtils.isEmpty(subject.getId()) ) {
+		if ( isEmpty(subject.getId()) ) {
 		  throw new LTIException( "plus.plusservice.not.persisted", "subject", null);
 		}
 
-		if ( StringUtils.isEmpty(user.getId()) ) {
+		if ( isEmpty(user.getId()) ) {
 		  throw new LTIException( "plus.plusservice.not.persisted", "user", null);
 		}
 
@@ -288,11 +379,11 @@ public class PlusServiceImpl implements PlusService {
 		  throw new LTIException( "plus.plusservice.null.parameters", "context or site", null);
 		}
 
-		if ( StringUtils.isEmpty(context.getId()) ) {
+		if ( isEmpty(context.getId()) ) {
 		  throw new LTIException( "plus.plusservice.not.persisted", "context", null);
 		}
 
-		if ( StringUtils.isEmpty(site.getId()) ) {
+		if ( isEmpty(site.getId()) ) {
 		  throw new LTIException( "plus.plusservice.site.not.persisted", "site", null);
 		}
 
@@ -311,11 +402,11 @@ public class PlusServiceImpl implements PlusService {
 		  throw new LTIException( "plus.plusservice.null.parameters", "link", null);
 		}
 
-		if ( StringUtils.isEmpty(link.getId()) ) {
+		if ( isEmpty(link.getId()) ) {
 		  throw new LTIException( "plus.plusservice.not.persisted", "link", null);
 		}
 
-		if ( StringUtils.isEmpty(placementId) ) {
+		if ( isEmpty(placementId) ) {
 		  throw new LTIException( "plus.plusservice.site.null.parameters", "placement", null);
 		}
 
@@ -337,7 +428,7 @@ System.out.println("synchSiteMemberships");
 			return;
 		}
 
-		if (StringUtils.isEmpty(contextGuid) ) {
+		if (isEmpty(contextGuid) ) {
 			log.info("Context GUID is required. Memberships will NOT be synchronized.");
 			return;
 		}
@@ -356,12 +447,12 @@ System.out.println("synchSiteMemberships");
 		String tenantGuid = context.getTenant().getId();
 		String contextMemberships = context.getContextMemberships();
 
-		if (StringUtils.isEmpty(tenantGuid)) {
+		if (isEmpty(tenantGuid)) {
 			log.info("Context {} does not have a tenant.  Memberships will NOT be synchronized.", contextGuid);
 			return;
 		}
 
-		if (StringUtils.isEmpty(contextMemberships)) {
+		if (isEmpty(contextMemberships)) {
 			log.info("Context {} does not have Memberships URL.  Memberships will NOT be synchronized.", contextGuid);
 			return;
 		}
@@ -382,28 +473,30 @@ System.out.println("synchSiteMemberships");
 		String deploymentId = tenant.getDeploymentId();
 		String oidcTokenUrl = tenant.getOidcToken();
 		String oidcAudience = tenant.getOidcAudience();
-		if ( StringUtils.isEmpty(oidcAudience) ) oidcAudience = oidcTokenUrl;
+		if ( isEmpty(oidcAudience) ) oidcAudience = oidcTokenUrl;
 		boolean trustEmail = ! Boolean.FALSE.equals(tenant.getTrustEmail());
 
-		if (StringUtils.isEmpty(clientId)) {
+		if (isEmpty(clientId)) {
 			log.info("Tenant {} does not have clientId.  Memberships will NOT be synchronized.", tenantGuid);
 			return;
 		}
 
-		if (StringUtils.isEmpty(deploymentId)) {
+		if (isEmpty(deploymentId)) {
 			log.info("Tenant {} does not have deploymentId.  Memberships will NOT be synchronized.", tenantGuid);
 			return;
 		}
 
-		if (StringUtils.isEmpty(oidcTokenUrl)) {
+		if (isEmpty(oidcTokenUrl)) {
 			log.info("Tenant {} does not have an OIDC Token URL.  Memberships will NOT be synchronized.", contextGuid);
 			return;
 		}
 
+		boolean isEmailTrustedConsumer = ! Boolean.FALSE.equals(tenant.getTrustEmail());
+
 		// Looks like we have the requisite strings in variables :)
 		KeyPair keyPair = SakaiKeySetUtil.getCurrent();
 		AccessToken nrpsAccessToken = LTI13AccessTokenUtil.getNRPSToken(oidcTokenUrl, keyPair, clientId, deploymentId, oidcAudience);
-		if ( nrpsAccessToken == null || StringUtils.isEmpty(nrpsAccessToken.access_token) ) {
+		if ( nrpsAccessToken == null || isEmpty(nrpsAccessToken.access_token) ) {
 			log.info("Could not retrieve NRPS (Names and Roles) token from {}.  Memberships will NOT be synchronized.", oidcTokenUrl);
 			return;
 		}
@@ -456,10 +549,43 @@ System.out.println("synchSiteMemberships");
 				Member member = mapper.readValue(jsonParser, Member.class);
 System.out.println("member="+member.email);
 				count = count + 1;
+
+				SakaiLaunchJWT launchJWT = new SakaiLaunchJWT();
+				launchJWT.subject = member.user_id;
+				launchJWT.email = member.email;
+				launchJWT.given_name = member.given_name;
+				launchJWT.family_name = member.family_name;
+				launchJWT.roles = member.roles;
+
+				Subject subject = createOrUpdateSubject(tenant, member.user_id, launchJWT);
+				if ( subject == null ) {
+					log.error("Failed createOrUpdateSubject subject={}", member.user_id);
+					continue;
+				}
+
+				Map<String, String> payload = getPayloadFromLaunchJWT(tenant, launchJWT);
+				payload.put("tenant_guid", contextGuid);
+
+				User user = userFinderOrCreator.findOrCreateUser(payload, false, isEmailTrustedConsumer);
+				if ( user == null ) {
+					log.error("Failed findOrCreateUser subject={}", member.user_id);
+					continue;
+				}
+
+				connectSubjectAndUser(subject, user);
+
+				// invokeProcessors(payload, ProcessingState.afterUserCreation, user);
+
+				siteEmailPreferenceSetter.setupUserEmailPreferenceForSite(payload, user, site, false);
+
+				site = siteMembershipUpdater.addOrUpdateSiteMembership(payload, false, user, site);
+
+				// invokeProcessors(payload, ProcessingState.afterSiteMembership, user, site);
+
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			log.error("Could not stream");
+			log.error("Error processing contextMemberships stream context={}", contextGuid, e);
 		}
 
 		// Update the job status
@@ -519,12 +645,12 @@ System.out.println("createLineItem site="+site.getId());
 		String tenantGuid = context.getTenant().getId();
 		String lineItemsUrl	= context.getLineItems();
 
-		if (StringUtils.isEmpty(tenantGuid)) {
+		if (isEmpty(tenantGuid)) {
 			log.info("Context {} does not have a tenant.  Scores will NOT be synchronized.", contextGuid);
 			return null;
 		}
 
-		if (StringUtils.isEmpty(lineItemsUrl)) {
+		if (isEmpty(lineItemsUrl)) {
 			log.info("Context {} does not have LineItems URL.  Scores will NOT be synchronized.", contextGuid);
 			return null;
 		}
@@ -545,20 +671,20 @@ System.out.println("createLineItem site="+site.getId());
 		String deploymentId = tenant.getDeploymentId();
 		String oidcTokenUrl = tenant.getOidcToken();
 		String oidcAudience = tenant.getOidcAudience();
-		if ( StringUtils.isEmpty(oidcAudience) ) oidcAudience = oidcTokenUrl;
+		if ( isEmpty(oidcAudience) ) oidcAudience = oidcTokenUrl;
 		boolean trustEmail = ! Boolean.FALSE.equals(tenant.getTrustEmail());
 
-		if (StringUtils.isEmpty(clientId)) {
+		if (isEmpty(clientId)) {
 			log.info("Tenant {} does not have clientId.  Scores will NOT be synchronized.", tenantGuid);
 			return null;
 		}
 
-		if (StringUtils.isEmpty(deploymentId)) {
+		if (isEmpty(deploymentId)) {
 			log.info("Tenant {} does not have deploymentId.  Scores will NOT be synchronized.", tenantGuid);
 			return null;
 		}
 
-		if (StringUtils.isEmpty(oidcTokenUrl)) {
+		if (isEmpty(oidcTokenUrl)) {
 			log.info("Tenant {} does not have an OIDC Token URL.  Scores will NOT be synchronized.", contextGuid);
 			return null;
 		}
@@ -567,7 +693,7 @@ System.out.println("createLineItem site="+site.getId());
 		// https://www.imsglobal.org/spec/lti-ags/v2p0/#creating-a-new-line-item
 		KeyPair keyPair = SakaiKeySetUtil.getCurrent();
 		AccessToken lineItemsAccessToken = LTI13AccessTokenUtil.getLineItemsToken(oidcTokenUrl, keyPair, clientId, deploymentId, oidcAudience);
-		if ( lineItemsAccessToken == null || StringUtils.isEmpty(lineItemsAccessToken.access_token) ) {
+		if ( lineItemsAccessToken == null || isEmpty(lineItemsAccessToken.access_token) ) {
 			log.info("Could not retrieve lineItems token from {}.  Scores will NOT be synchronized.", oidcTokenUrl);
 			return null;
 		}
@@ -605,7 +731,7 @@ System.out.println("li.resourceId="+li.resourceId);
 			if ( returnedItem != null ) {
 				String retval = returnedItem.id;
 System.out.println("returning linkitem id="+retval);
-				if ( StringUtils.isNotEmpty(retval) ) return retval;
+				if ( isNotEmpty(retval) ) return retval;
 			}
 		} catch ( Exception e ) {
 			log.error("Error parsing lineItem at {}", lineItemsUrl);
@@ -616,14 +742,15 @@ System.out.println("returning linkitem id="+retval);
 	}
 
 	/*
-     * Send a score to the calling LMS
-     */
+	 * Send a score to the calling LMS
+	 */
 	// https://www.imsglobal.org/spec/lti-ags/v2p0#score-publish-service
 	// https://www.imsglobal.org/spec/lti-ags/v2p0#comment-0
-    @Transactional(readOnly = true)
-    public void processGradeEvent(Event event)
+	@Transactional(readOnly = true)
+	public void processGradeEvent(Event event)
 	{
 		String[] parts = StringUtils.split(event.getResource(), '/');
+System.out.println("parts.length="+parts.length);
 		if (parts.length < 5) return;
 		final String source = parts[0];
 System.out.println("source="+source);
@@ -659,12 +786,12 @@ System.out.println("source="+source);
 		String deploymentId = tenant.getDeploymentId();
 		String oidcTokenUrl = tenant.getOidcToken();
 		String oidcAudience = tenant.getOidcAudience();
-		if ( StringUtils.isEmpty(oidcAudience) ) oidcAudience = oidcTokenUrl;
+		if ( isEmpty(oidcAudience) ) oidcAudience = oidcTokenUrl;
 
 		// Looks like we have the requisite strings in variables :)
 		KeyPair keyPair = SakaiKeySetUtil.getCurrent();
 		AccessToken scoreAccessToken = LTI13AccessTokenUtil.getScoreToken(oidcTokenUrl, keyPair, clientId, deploymentId, oidcAudience);
-		if ( scoreAccessToken == null || StringUtils.isEmpty(scoreAccessToken.access_token) ) {
+		if ( scoreAccessToken == null || isEmpty(scoreAccessToken.access_token) ) {
 			log.info("Could not retrieve lineItems token from {}.  Scores will NOT be synchronized.", oidcTokenUrl);
 			return;
 		}
