@@ -16,6 +16,9 @@
 
 package org.sakaiproject.plus.impl.service;
 
+import java.util.List;
+import java.util.ArrayList;
+
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Optional;
@@ -73,6 +76,7 @@ import org.sakaiproject.lti.api.UserPictureSetter;
 import org.sakaiproject.lti.api.SiteEmailPreferenceSetter;
 import org.sakaiproject.lti.api.SiteMembershipUpdater;
 
+import org.sakaiproject.lti.api.BLTIProcessor;
 
 import org.tsugi.nrps.objects.Member;
 import org.tsugi.oauth2.objects.AccessToken;
@@ -110,6 +114,9 @@ public class PlusServiceImpl implements PlusService {
 	@Autowired private UserFinderOrCreator userFinderOrCreator;
 	@Autowired private UserLocaleSetter userLocaleSetter;
 	@Autowired private UserPictureSetter userPictureSetter;
+
+	// TODO: Test this when we have some sample processors - mostly worry about classloader issues
+	@Setter private List<BLTIProcessor> bltiProcessors = new ArrayList();
 
 	/*
 	 * Indicate if plus is enabled on this system
@@ -574,13 +581,13 @@ System.out.println("member="+member.email);
 
 				connectSubjectAndUser(subject, user);
 
-				// invokeProcessors(payload, ProcessingState.afterUserCreation, user);
+				invokeProcessors(payload, ProcessingState.afterUserCreation, user);
 
 				siteEmailPreferenceSetter.setupUserEmailPreferenceForSite(payload, user, site, false);
 
 				site = siteMembershipUpdater.addOrUpdateSiteMembership(payload, false, user, site);
 
-				// invokeProcessors(payload, ProcessingState.afterSiteMembership, user, site);
+				invokeProcessors(payload, ProcessingState.afterSiteMembership, user, site);
 
 			}
 		} catch (Exception e) {
@@ -821,7 +828,70 @@ System.out.println("body="+body);
 			return;
 		}
 
+	}
 
+	public void invokeProcessors(Map payload, ProcessingState processingState, User user) throws LTIException
+	{
+		invokeProcessors(payload, processingState, user, null, null);
+	}
+
+	public void invokeProcessors(Map payload,
+				ProcessingState processingState) throws LTIException
+	{
+		invokeProcessors(payload, processingState, null, null, null);
+	}
+
+	public void invokeProcessors(Map payload,
+				ProcessingState processingState, User user,
+				Site site) throws LTIException
+	{
+		invokeProcessors(payload, processingState, user, site, null);
+	}
+
+	public void invokeProcessors(Map payload,
+				ProcessingState processingState, User user,
+				Site site, String toolPlacementId) throws LTIException
+	{
+
+		/*
+		 * trustedConsumer is a feature from the old LTI 1.1 Provider servlet that is used when two
+		 * Sakai systems are sharing a database.  This feature is not supported in this servlet
+		 * since the context_id is scoped to Tenant and there can be mutiple tenants
+		 * so trustedConsumer is set to false for all the processors / separate library code.  Most of that
+		 * library code that is called here simply checks if trustedConsumer is true and does nothing.
+		 */
+		boolean trustedConsumer = false;
+
+		if (!bltiProcessors.isEmpty()) {
+			for (BLTIProcessor processor : bltiProcessors) {
+				switch (processingState) {
+
+					case beforeValidation:
+						processor.beforeValidation(payload, trustedConsumer);
+						break;
+					case afterValidation:
+						processor.afterValidation(payload, trustedConsumer);
+						break;
+					case afterUserCreation:
+						processor.afterUserCreation(payload, user);
+						break;
+					case afterLogin:
+						processor.afterLogin(payload, trustedConsumer, user);
+						break;
+					case afterSiteCreation:
+						processor.afterSiteCreation(payload, trustedConsumer, user, site);
+						break;
+					case afterSiteMembership:
+						processor.afterSiteMembership(payload, trustedConsumer, user, site);
+						break;
+					case beforeLaunch:
+						processor.beforeLaunch(payload, trustedConsumer, user, site, toolPlacementId);
+						break;
+					default:
+						log.error("unknown processing state of {}", processingState);
+				}
+			}
+		}
 	}
 
 /*

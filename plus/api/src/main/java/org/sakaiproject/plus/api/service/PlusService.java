@@ -17,6 +17,7 @@
 package org.sakaiproject.plus.api.service;
 
 import java.util.Map;
+import java.util.List;
 
 import org.sakaiproject.lti.api.LTIException;
 
@@ -32,9 +33,16 @@ import org.sakaiproject.user.api.User;
 import org.sakaiproject.site.api.Site;
 import org.sakaiproject.event.api.Event;
 
+import org.sakaiproject.lti.api.BLTIProcessor;
+
 public interface PlusService {
 
 	static final String PLUS_PROPERTY = "plus_site";
+
+	public enum ProcessingState {
+		beforeValidation, afterValidation, afterUserCreation, afterLogin, afterSiteCreation,
+		afterSiteMembership, beforeLaunch
+	}
 
 	/*
 	 * Note whether or not this system has Plus enabled
@@ -45,6 +53,11 @@ public interface PlusService {
 	 * Note whether or not a Site has Plus enabled
 	 */
 	boolean enabled(Site site);
+
+	/*
+	 * Get the list of processors from ProviderServlet
+	 */
+	void setBltiProcessors(List<BLTIProcessor> bltiProcessors);
 
 	/*
 	 * Get a payload map from a LaunchJWT
@@ -92,6 +105,21 @@ public interface PlusService {
 	 */
 	// https://www.imsglobal.org/spec/lti-ags/v2p0#score-publish-service
 	void processGradeEvent(Event event);
+
+	/*
+	 * LTIProcessors to invoke custom code at each step of the launch setup
+	 */
+	void invokeProcessors(Map payload, ProcessingState processingState, User user) throws LTIException;
+
+	void invokeProcessors(Map payload, ProcessingState processingState) throws LTIException;
+
+	void invokeProcessors(Map payload,
+		ProcessingState processingState, User user,
+		Site site) throws LTIException;
+
+	void invokeProcessors(Map payload,
+		ProcessingState processingState, User user,
+		Site site, String toolPlacementId) throws LTIException;
 
 	// vim: tabstop=4 noet
 }

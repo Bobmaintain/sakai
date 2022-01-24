@@ -206,11 +206,6 @@ public class ProviderServlet extends HttpServlet {
 		cache.put(key, value);
 	}
 
-	private enum ProcessingState {
-		beforeValidation, afterValidation, afterUserCreation, afterLogin, afterSiteCreation,
-		afterSiteMembership, beforeLaunch
-	}
-
 	/**
 	 * Setup a security advisor.
 	 */
@@ -312,8 +307,11 @@ public class ProviderServlet extends HttpServlet {
 		// load all instance of BLTIProcessor in component mgr by type detection
 		Collection processors = ac.getParent().getBeansOfType(BLTIProcessor.class).values();
 		bltiProcessors = new ArrayList(processors);
-		// sort in using getOrder() method
+		if ( ! bltiProcessors.isEmpty() ) {
+			log.error("Make sure to test BLTIProcessors carefully as they have been moved to the PlusService");
+		}
 
+		// sort in using getOrder() method
 		// sort them so the execution order is determined consistenly - by getOrder()
 		Collections.sort(bltiProcessors, new Comparator() {
 			public int compare(Object o1, Object o2) {
@@ -321,6 +319,9 @@ public class ProviderServlet extends HttpServlet {
 						.compareTo(((BLTIProcessor) (o2)).getOrder());
 			}
 		});
+
+		// TODO: Test this when we have some sample processors - mostly worry about classloader issues
+		plusService.setBltiProcessors(bltiProcessors);
 	}
 
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -534,17 +535,17 @@ System.out.println("==== oidc_launch ====");
 		boolean isEmailTrustedConsumer = ! Boolean.FALSE.equals(tenant.getTrustEmail());
 
 		try {
-			invokeProcessors(payload, ProcessingState.beforeValidation);
+			plusService.invokeProcessors(payload, PlusService.ProcessingState.beforeValidation);
 
 			Launch launch = validate(payload, launchJWT, tenant);
 
-			invokeProcessors(payload, ProcessingState.afterValidation);
+			plusService.invokeProcessors(payload, PlusService.ProcessingState.afterValidation);
 
 			User user = userFinderOrCreator.findOrCreateUser(payload, false, isEmailTrustedConsumer);
 
 			plusService.connectSubjectAndUser(launch.getSubject(), user);
 
-			invokeProcessors(payload, ProcessingState.afterUserCreation, user);
+			plusService.invokeProcessors(payload, PlusService.ProcessingState.afterUserCreation, user);
 
 			// Check if we are loop-backing on the same server, and already logged in as same user
 			Session sess = SessionManager.getCurrentSession();
@@ -556,7 +557,7 @@ System.out.println("==== oidc_launch ====");
 			// Re-grab the session
 			sess = SessionManager.getCurrentSession();
 
-			invokeProcessors(payload, ProcessingState.afterLogin, user);
+			plusService.invokeProcessors(payload, PlusService.ProcessingState.afterLogin, user);
 
 			// This needs to happen after login, when we have a session for the user.
 			userLocaleSetter.setupUserLocale(payload, user, false, isEmailTrustedConsumer);
@@ -577,18 +578,18 @@ System.out.println("==== oidc_launch ====");
 
 			plusService.connectContextAndSite(launch.getContext(), site);
 
-			invokeProcessors(payload, ProcessingState.afterSiteCreation, user, site);
+			plusService.invokeProcessors(payload, PlusService.ProcessingState.afterSiteCreation, user, site);
 
 			siteEmailPreferenceSetter.setupUserEmailPreferenceForSite(payload, user, site, false);
 
 			site = siteMembershipUpdater.addOrUpdateSiteMembership(payload, false, user, site);
 
-			invokeProcessors(payload, ProcessingState.afterSiteMembership, user, site);
+			plusService.invokeProcessors(payload, PlusService.ProcessingState.afterSiteMembership, user, site);
 
 			String contextGuid = (String) payload.get("context_guid");
 			if ( contextGuid != null ) syncSiteMembershipsOnceThenSchedule(contextGuid, site);
 
-			invokeProcessors(payload, ProcessingState.beforeLaunch, user, site);
+			plusService.invokeProcessors(payload, PlusService.ProcessingState.beforeLaunch, user, site);
 
 			// Construct a URL to site or tool
 			StringBuilder url = new StringBuilder();
@@ -729,66 +730,6 @@ System.out.println("forwarding to url="+url.toString());
 		r.append("document.getElementById(\"repost_done\").style.display = \"block\";\n");
 		r.append("}</script>\n");
 		BasicLTIUtil.sendHTMLPage(response, r.toString());
-	}
-
-	protected void invokeProcessors(Map payload, ProcessingState processingState, User user) throws LTIException {
-		invokeProcessors(payload, processingState, user, null, null);
-	}
-
-	protected void invokeProcessors(Map payload,
-									ProcessingState processingState) throws LTIException{
-		invokeProcessors(payload, processingState, null, null, null);
-	}
-
-	protected void invokeProcessors(Map payload,
-									ProcessingState processingState, User user,
-									Site site) throws LTIException{
-		invokeProcessors(payload, processingState, user, site, null);
-	}
-
-	protected void invokeProcessors(Map payload,
-									ProcessingState processingState, User user,
-									Site site, String toolPlacementId) throws LTIException{
-
-		/*
-		 * trustedConsumer is a feature from the old LTI 1.1 Provider servlet that is used when two
-		 * Sakai systems are sharing a database.  This feature is not supported in this servlet
-		 * since the context_id is scoped to Tenant and there can be mutiple tenants
-		 * so trustedConsumer is set to false for all the processors / separate library code.  Most of that
-		 * library code that is called here simply checks if trustedConsumer is true and does nothing.
-		 */
-		boolean trustedConsumer = false;
-
-		if (!bltiProcessors.isEmpty()) {
-			for (BLTIProcessor processor : bltiProcessors) {
-				switch (processingState) {
-
-					case beforeValidation:
-						processor.beforeValidation(payload, trustedConsumer);
-						break;
-					case afterValidation:
-						processor.afterValidation(payload, trustedConsumer);
-						break;
-					case afterUserCreation:
-						processor.afterUserCreation(payload, user);
-						break;
-					case afterLogin:
-						processor.afterLogin(payload, trustedConsumer, user);
-						break;
-					case afterSiteCreation:
-						processor.afterSiteCreation(payload, trustedConsumer, user, site);
-						break;
-					case afterSiteMembership:
-						processor.afterSiteMembership(payload, trustedConsumer, user, site);
-						break;
-					case beforeLaunch:
-						processor.beforeLaunch(payload, trustedConsumer, user, site, toolPlacementId);
-						break;
-					default:
-						log.error("unknown processing state of {}", processingState);
-				}
-			}
-		}
 	}
 
 	protected Launch validate(Map payload, SakaiLaunchJWT launchJWT, Tenant tenant) throws LTIException
