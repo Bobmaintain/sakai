@@ -14,7 +14,7 @@
  * permissions and limitations under the License.
  */
 
-package org.sakaiproject.plus.api.service;
+package org.sakaiproject.plus.api;
 
 import java.util.Map;
 import java.util.List;

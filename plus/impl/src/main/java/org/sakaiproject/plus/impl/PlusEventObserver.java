@@ -30,7 +30,7 @@ import org.sakaiproject.service.gradebook.shared.AssessmentNotFoundException;
 import org.sakaiproject.user.api.User;
 import org.sakaiproject.user.api.UserDirectoryService;
 import org.sakaiproject.user.api.UserNotDefinedException;
-import org.sakaiproject.plus.api.service.PlusService;
+import org.sakaiproject.plus.api.PlusService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 

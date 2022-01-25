@@ -53,6 +53,7 @@ import org.sakaiproject.service.gradebook.shared.GradebookService;
 import org.sakaiproject.service.gradebook.shared.CommentDefinition;
 
 import org.sakaiproject.plus.api.Launch;
+import org.sakaiproject.plus.api.PlusService;
 import org.sakaiproject.plus.api.model.Context;
 import org.sakaiproject.plus.api.model.Link;
 import org.sakaiproject.plus.api.model.Subject;
@@ -63,7 +64,6 @@ import org.sakaiproject.plus.api.repository.LinkRepository;
 import org.sakaiproject.plus.api.repository.ScoreRepository;
 import org.sakaiproject.plus.api.repository.SubjectRepository;
 import org.sakaiproject.plus.api.repository.TenantRepository;
-import org.sakaiproject.plus.api.service.PlusService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.tsugi.http.HttpClientUtil;

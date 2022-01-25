@@ -78,7 +78,7 @@ import org.sakaiproject.service.gradebook.shared.exception.UnmappableCourseGrade
 import org.sakaiproject.site.api.Group;
 import org.sakaiproject.site.api.Site;
 import org.sakaiproject.site.api.SiteService;
-import org.sakaiproject.plus.api.service.PlusService;
+import org.sakaiproject.plus.api.PlusService;
 import org.sakaiproject.tool.gradebook.AssignmentGradeRecord;
 import org.sakaiproject.tool.gradebook.Category;
 import org.sakaiproject.tool.gradebook.Comment;

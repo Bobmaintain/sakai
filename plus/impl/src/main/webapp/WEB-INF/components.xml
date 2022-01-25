@@ -55,7 +55,7 @@
         <property name="sessionFactory" ref="org.sakaiproject.springframework.orm.hibernate.GlobalSessionFactory"/>
     </bean>
 
-    <bean id="org.sakaiproject.plus.api.service.PlusService"
+    <bean id="org.sakaiproject.plus.api.PlusService"
         class="org.sakaiproject.plus.impl.service.PlusServiceImpl">
         <!-- all the properties are autowired - Yay -->
     </bean>

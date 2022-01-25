@@ -88,7 +88,7 @@
             <ref bean="org.sakaiproject.site.api.SiteService" />
         </property>
         <property name="plusService">
-            <ref bean="org.sakaiproject.plus.api.service.PlusService" />
+            <ref bean="org.sakaiproject.plus.api.PlusService" />
         </property>
         <property name="serverConfigService" ref="org.sakaiproject.component.api.ServerConfigurationService" />
         <property name="rubricsService" ref="org.sakaiproject.rubrics.logic.RubricsService" />

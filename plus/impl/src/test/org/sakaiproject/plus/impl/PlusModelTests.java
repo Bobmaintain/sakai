@@ -19,7 +19,7 @@ package org.sakaiproject.plus.impl;
 import java.time.Instant;
 
 import org.sakaiproject.plus.api.Launch;
-import org.sakaiproject.plus.api.service.PlusService;
+import org.sakaiproject.plus.api.PlusService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;

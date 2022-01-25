@@ -122,7 +122,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.tsugi.deeplink.objects.DeepLinkResponse;
 import org.tsugi.deeplink.objects.LtiResourceLink;
 
-import org.sakaiproject.plus.api.service.PlusService;
+import org.sakaiproject.plus.api.PlusService;
 
 import org.sakaiproject.plus.api.model.Tenant;
 import org.sakaiproject.plus.api.model.Subject;
@@ -287,7 +287,7 @@ public class ProviderServlet extends HttpServlet {
 			throw new ServletException("Failed to set ltiService.");
 		}
 
-		plusService = (PlusService) ComponentManager.getInstance().get("org.sakaiproject.plus.api.service.PlusService");
+		plusService = (PlusService) ComponentManager.getInstance().get("org.sakaiproject.plus.api.PlusService");
 		if (plusService  == null) {
 			throw new ServletException("Failed to set plusService.");
 		}
