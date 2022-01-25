@@ -52,7 +52,7 @@ public class UserFinderOrCreatorImpl implements UserFinderOrCreator {
 
 		// Get the eid, either from the value provided or if trusted get it from the user_id, otherwise construct it.
 		if(!emailtrusted){
-		 eid = getEid(payload, trustedConsumer, user_id);
+			eid = getEid(payload, trustedConsumer, user_id);
 		}
 
 		// If we did not get first and last name, split lis_person_name_full
@@ -64,6 +64,7 @@ public class UserFinderOrCreatorImpl implements UserFinderOrCreator {
 		if (emailtrusted && StringUtils.isEmpty(email)) {
 			log.warn("trusting email as eid, no email provided subject_guid={}", subject_guid);
 System.out.println("trusting email as eid, no email provided subject_guid="+subject_guid);
+			eid = subject_guid;
 		}
 
 		if (fname == null && lname == null && fullname != null) {
@@ -111,6 +112,11 @@ System.out.println("trusting email as eid, no email provided subject_guid="+subj
 				return user;
 			}
 		}
+
+		if ( StringUtils.isEmpty(eid)) {
+			throw new LTIException("launch.user.noeid", "user_id=" + user_id);
+		}
+
 
 		try {
 			user = userDirectoryService.getUserByEid(eid);

@@ -69,6 +69,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.tsugi.http.HttpClientUtil;
 
 import org.tsugi.basiclti.BasicLTIConstants;
+import org.tsugi.basiclti.BasicLTIUtil;
 
 import org.sakaiproject.lti.api.UserFinderOrCreator;
 import org.sakaiproject.lti.api.UserLocaleSetter;
@@ -570,8 +571,10 @@ System.out.println("member="+member.email);
 					continue;
 				}
 
+
 				Map<String, String> payload = getPayloadFromLaunchJWT(tenant, launchJWT);
 				payload.put("tenant_guid", contextGuid);
+	                        payload.put("subject_guid", subject.getId());
 
 				User user = userFinderOrCreator.findOrCreateUser(payload, false, isEmailTrustedConsumer);
 				if ( user == null ) {
@@ -815,7 +818,12 @@ System.out.println("source="+source);
 		score.scoreMaximum = gradebookAssignment.getPoints();
 		score.comment = comment;
 		score.userId = subject.getSubject();
+		score.timestamp = BasicLTIUtil.getISO8601();
+		// TODO: Think more about this - Canvas requires this but we don't know what various values mean in Canvas
+		score.activityProgress = Score.ACTIVITY_COMPLETED;
+		score.gradingProgress = Score.GRADING_FULLYGRADED;
 System.out.println("score="+score.prettyPrintLog());
+
 		String body = score.prettyPrintLog();
 		String scoreUrl = lineItem + "/scores";
 
