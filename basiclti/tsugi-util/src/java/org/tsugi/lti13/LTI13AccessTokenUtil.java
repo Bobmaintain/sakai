@@ -143,7 +143,8 @@ public class LTI13AccessTokenUtil {
 			// TODO: Should this be form encoded per IMS or JSON per Canvas?
 			// https://www.imsglobal.org/spec/security/v1p0/#using-json-web-tokens-with-oauth-2-0-client-credentials-grant
 			// https://canvas.instructure.com/doc/api/file.oauth_endpoints.html#post-login-oauth2-token
-System.out.println("Getting access token url="+url+" sent="+assertion);
+System.out.println("Getting access token url="+url);
+System.out.println("Assertion Map\n"+assertion);
 
 			HttpResponse<String> response = HttpClientUtil.sendPost(url, assertion, null);
 			String responseStr = response.body();

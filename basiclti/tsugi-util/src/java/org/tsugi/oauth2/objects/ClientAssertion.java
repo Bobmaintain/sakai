@@ -36,7 +36,7 @@ public class ClientAssertion extends BaseJWT {
 	public static final String GRANT_TYPE = "grant_type";
 	public static final String GRANT_TYPE_CLIENT_CREDENTIALS = "client_credentials";
 	public static final String CLIENT_ASSERTION_TYPE = "client_assertion_type";
-	public static final String CLIENT_ASSERTION_TYPE_JWT = "iurn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+	public static final String CLIENT_ASSERTION_TYPE_JWT = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
 	public static final String CLIENT_ASSERTION = "client_assertion";
 	public static final String SCOPE = "scope";
 

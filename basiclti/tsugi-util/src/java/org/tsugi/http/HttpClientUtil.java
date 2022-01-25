@@ -113,8 +113,11 @@ public class HttpClientUtil {
 			.uri(URI.create(url))
 			.header("User-Agent", "org.tsugi.http.HttpClientUtil web service request");
 
+System.out.println("sendPost headers="+headers);
+
 		if ( headers != null ) {
 			for (Map.Entry<String, String> entry : headers.entrySet()) {
+System.out.println(entry.getKey().toString()+" : "+entry.getValue().toString());
 				builder.setHeader(entry.getKey().toString(), entry.getValue().toString());
 			}
 		}
@@ -140,6 +143,7 @@ public class HttpClientUtil {
 			builder.append("=");
 			builder.append(URLEncoder.encode(entry.getValue().toString(), StandardCharsets.UTF_8));
 		}
+System.out.println("builder: "+builder.toString());
 		return HttpRequest.BodyPublishers.ofString(builder.toString());
 	}
 
