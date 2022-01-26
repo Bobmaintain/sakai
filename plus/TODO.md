@@ -8,14 +8,18 @@ Put context memberships into a thread and then into a batch job
 
 Put lineitem creation and score sending into database for redo on failure and add batch job
 
-Build pretty UI for errors
+Build pretty UI for errors - add forward to knowledgebase feature
 
-Add the validation errors to debug log
+Make the mini / ultra portal for tool launches
+
+Make a single tool content item request and Canvas config
+
+Build IMS auto-configuration
 
 THINGS TO RESEARCH
 ------------------
 
-LIMIT 1
+LIMIT 1 im Repository lookup's when there is a unique constraint
 https://www.baeldung.com/jpa-limit-query-results
 
 Embedded ID

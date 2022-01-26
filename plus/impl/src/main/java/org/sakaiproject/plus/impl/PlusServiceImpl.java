@@ -450,7 +450,7 @@ public class PlusServiceImpl implements PlusService {
 		}
 
 		if (isEmpty(contextGuid) ) {
-			log.info("Context GUID is required. Memberships will NOT be synchronized.");
+			log.error("Context GUID is required. Memberships will NOT be synchronized.");
 			return;
 		}
 

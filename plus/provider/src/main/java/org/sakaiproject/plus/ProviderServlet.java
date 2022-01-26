@@ -226,6 +226,7 @@ public class ProviderServlet extends HttpServlet {
 		SecurityService.popAdvisor();
 	}
 
+	// TODO: Make this a *lot* prettier and add forward to knowledge base feature :)
 	public void doError(HttpServletRequest request,HttpServletResponse response, String s, String message, Throwable e) throws java.io.IOException {
 		if (e != null) {
 			log.error(e.getLocalizedMessage(), e);
@@ -1124,7 +1125,6 @@ System.out.println("forwarding to url="+url.toString());
 		boolean dodebug = true;
 		String state = null;
 		String html = SakaiBLTIUtil.getJwsHTMLForm(deep_link_return_url, "JWT", jws, dlrs, state, launch_error, dodebug);
-
 
 		BasicLTIUtil.sendHTMLPage(response, html);
 	}
