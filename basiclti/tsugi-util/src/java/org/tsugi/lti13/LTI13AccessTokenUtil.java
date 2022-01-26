@@ -18,6 +18,8 @@
  */
 package org.tsugi.lti13;
 
+import java.lang.StringBuffer;
+
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -55,12 +57,23 @@ public class LTI13AccessTokenUtil {
 	 *   https://www.imsglobal.org/spec/security/v1p0/#using-json-web-tokens-with-oauth-2-0-client-credentials-grant
 	 */
 	public static Map getClientAssertion(String[] scopes, KeyPair keyPair,
-		String clientId, String deploymentId, String tokenAudience)
+		String clientId, String deploymentId, String tokenAudience, StringBuffer dbs)
 	{
+		if ( dbs != null ) {
+			dbs.append("getClientAssertion\n");
+		}
+
 		Map retval = new TreeMap();
 		retval.put(ClientAssertion.GRANT_TYPE, ClientAssertion.GRANT_TYPE_CLIENT_CREDENTIALS);
 		retval.put(ClientAssertion.CLIENT_ASSERTION_TYPE, ClientAssertion.CLIENT_ASSERTION_TYPE_JWT);
-		if ( scopes != null && scopes.length > 0 ) retval.put(ClientAssertion.SCOPE, String.join(" ", scopes));
+		if ( scopes != null && scopes.length > 0 ) {
+			retval.put(ClientAssertion.SCOPE, String.join(" ", scopes));
+			if ( dbs != null ) {
+				dbs.append("scopes\n");
+				dbs.append((String) retval.get(ClientAssertion.SCOPE));
+				dbs.append("\n");
+			}
+		}
 
 		ClientAssertion ca = new ClientAssertion();
 		ca.issuer = clientId;  // This is our server
@@ -76,6 +89,14 @@ public class LTI13AccessTokenUtil {
 		String kid = LTI13KeySetUtil.getPublicKID(publicKey);
 
 		log.debug("getClientAssertion kid={} token={}", kid, cas);
+		if ( dbs != null && kid != null && cas != null ) {
+			dbs.append("kid=");
+			dbs.append(kid);
+			dbs.append("\n");
+			dbs.append(StringUtils.truncate(cas, 1000));
+			dbs.append("\n");
+		}
+
 		String jws = Jwts.builder().setHeaderParam("kid", kid).
 					setPayload(cas).signWith(privateKey).compact();
 		retval.put(ClientAssertion.CLIENT_ASSERTION, jws);
@@ -84,14 +105,14 @@ public class LTI13AccessTokenUtil {
 	}
 
 	public static AccessToken getScoreToken(String url, KeyPair keyPair,
-		String clientId, String deploymentId, String tokenAudience)
+		String clientId, String deploymentId, String tokenAudience, StringBuffer dbs)
 	{
-		Map assertion = getScoreAssertion(keyPair, clientId, deploymentId, tokenAudience);
-		return retrieveToken(url, assertion);
+		Map assertion = getScoreAssertion(keyPair, clientId, deploymentId, tokenAudience, dbs);
+		return retrieveToken(url, assertion, dbs);
 	}
 
 	public static Map getScoreAssertion(KeyPair keyPair,
-		String clientId, String deploymentId, String tokenAudience)
+		String clientId, String deploymentId, String tokenAudience, StringBuffer dbs)
 	{
 		return getClientAssertion(
 				new String[] {
@@ -99,67 +120,98 @@ public class LTI13AccessTokenUtil {
 					LTI13ConstantsUtil.SCOPE_SCORE,
 					LTI13ConstantsUtil.SCOPE_RESULT_READONLY
 				},
-			keyPair, clientId, deploymentId, tokenAudience);
+			keyPair, clientId, deploymentId, tokenAudience, dbs);
 	}
 
 	public static AccessToken getNRPSToken(String url, KeyPair keyPair,
-		String clientId, String deploymentId, String tokenAudience)
+		String clientId, String deploymentId, String tokenAudience, StringBuffer dbs)
 	{
-		Map assertion = getNRPSAssertion(keyPair, clientId, deploymentId, tokenAudience);
-		return retrieveToken(url, assertion);
+		Map assertion = getNRPSAssertion(keyPair, clientId, deploymentId, tokenAudience, dbs);
+		return retrieveToken(url, assertion, dbs);
 	}
 
 	public static Map getNRPSAssertion(KeyPair keyPair,
-		String clientId, String deploymentId, String tokenAudience)
+		String clientId, String deploymentId, String tokenAudience, StringBuffer dbs)
 	{
 		return getClientAssertion(
 				new String[] {
 					LTI13ConstantsUtil.SCOPE_NAMES_AND_ROLES
 				},
-			keyPair, clientId, deploymentId, tokenAudience);
+			keyPair, clientId, deploymentId, tokenAudience, dbs);
 	}
 
 	public static AccessToken getLineItemsToken(String url, KeyPair keyPair,
-		String clientId, String deploymentId, String tokenAudience)
+		String clientId, String deploymentId, String tokenAudience, StringBuffer dbs)
 	{
-		Map assertion = getLineItemsAssertion(keyPair, clientId, deploymentId, tokenAudience);
-		return retrieveToken(url, assertion);
+		Map assertion = getLineItemsAssertion(keyPair, clientId, deploymentId, tokenAudience, dbs);
+		return retrieveToken(url, assertion, dbs);
 	}
 
 
 	public static Map getLineItemsAssertion(KeyPair keyPair,
-		String clientId, String deploymentId, String tokenAudience)
+		String clientId, String deploymentId, String tokenAudience, StringBuffer dbs)
 	{
 		return getClientAssertion(
 				new String[] {
 					LTI13ConstantsUtil.SCOPE_LINEITEM
 				},
-			keyPair, clientId, deploymentId, tokenAudience);
+			keyPair, clientId, deploymentId, tokenAudience, dbs);
 	}
 
-	protected static AccessToken retrieveToken(String url, Map assertion)
+	// https://www.imsglobal.org/spec/security/v1p0/#using-json-web-tokens-with-oauth-2-0-client-credentials-grant
+	// https://canvas.instructure.com/doc/api/file.oauth_endpoints.html#post-login-oauth2-token
+	protected static AccessToken retrieveToken(String url, Map assertion, StringBuffer dbs)
 	{
 		try {
-			// TODO: Should this be form encoded per IMS or JSON per Canvas?
-			// https://www.imsglobal.org/spec/security/v1p0/#using-json-web-tokens-with-oauth-2-0-client-credentials-grant
-			// https://canvas.instructure.com/doc/api/file.oauth_endpoints.html#post-login-oauth2-token
-System.out.println("Getting access token url="+url);
-System.out.println("Assertion Map\n"+assertion);
+			if ( dbs != null ) {
+				dbs.append("retrieveToken\n");
+				dbs.append(url);
+				dbs.append(assertion.toString());
+				dbs.append("\n");
+			}
 
-			HttpResponse<String> response = HttpClientUtil.sendPost(url, assertion, null);
+			HttpResponse<String> response = HttpClientUtil.sendPost(url, assertion, null, dbs);
 			String responseStr = response.body();
-System.out.println("responseStr="+responseStr);
+
+			if ( responseStr == null ) {
+				log.info("Empty / null response to POST url={} sent={}",url, assertion, responseStr);
+				if ( dbs != null ) dbs.append("Empty / null response to POST\n");
+				return null;
+			}
+
+			if ( dbs != null ) {
+				dbs.append("responseStr\n");
+				dbs.append(responseStr);
+				dbs.append("\n");
+			}
+
 			ObjectMapper mapper = JacksonUtil.getLaxObjectMapper();
 			AccessToken accessToken = mapper.readValue(responseStr, AccessToken.class);
-System.out.println("accessToken="+accessToken);
+
 			if ( accessToken == null || StringUtils.isEmpty(accessToken.access_token) ) {
-				log.info("Failed to retrieve access token url={} sent={} received={}",url, assertion, responseStr);
-System.out.println("Failed to retrieve access token url="+url+" sent="+assertion+" received="+responseStr);
+				log.info("Failed to parse access token url={} sent={} received={}",url, assertion, responseStr);
+				if ( dbs != null ) dbs.append("Could not parse access token\n");
+				return null;
 			}
+
+			if ( dbs != null ) {
+				dbs.append("access_token\n");
+				dbs.append(accessToken);
+				dbs.append("\n");
+			}
+
 			return accessToken;
 		} catch (Exception e) {
-e.printStackTrace();
+			// TODO: Earle - is the PrintStackTrace redundant here?
+			e.printStackTrace();
 			log.error("Error retrieving token from {}", url, e);
+
+			if ( dbs != null ) {
+				dbs.append("Exception retrieving token ");
+				dbs.append(e.getMessage());
+				dbs.append("\n");
+			}
+
 			return null;
 		}
 	}

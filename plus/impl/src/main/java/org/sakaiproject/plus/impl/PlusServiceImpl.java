@@ -16,6 +16,8 @@
 
 package org.sakaiproject.plus.impl.service;
 
+import java.lang.StringBuffer;
+
 import java.util.List;
 import java.util.ArrayList;
 
@@ -100,6 +102,8 @@ public class PlusServiceImpl implements PlusService {
 
 	public final String PLUS_PROVIDER_ENABLED = "plus.provider.enabled";
 	public final String PLUS_PROVIDER_ENABLED_DEFAULT = "true";
+	public final String PLUS_PROVIDER_VERBOSE = "plus.provider.verbose";
+	public final String PLUS_PROVIDER_VERBOSE_DEFAULT = "false";
 	public final String PLUS_ROSTER_SYCHRONIZATION = "plus.roster.synchronization";
 	public final boolean PLUS_ROSTER_SYCHRONIZATION_DEFAULT = false;
 
@@ -135,6 +139,16 @@ public class PlusServiceImpl implements PlusService {
 	{
 		String plus_property = site.getProperties().getProperty(PlusService.PLUS_PROPERTY);
 		return "true".equals(plus_property);
+	}
+
+	/*
+	 * Indicate if verbose debugging is enabled
+	 */
+	public boolean verbose()
+	{
+		if ( log.isDebugEnabled() ) return true;
+		String verbose = ServerConfigurationService.getString(PLUS_PROVIDER_VERBOSE, PLUS_PROVIDER_VERBOSE_DEFAULT);
+		return "true".equals(verbose);
 	}
 
 	/*
@@ -429,7 +443,6 @@ public class PlusServiceImpl implements PlusService {
 	public void syncSiteMemberships(String contextGuid, Site site) throws LTIException {
 
 		log.debug("synchSiteMemberships");
-System.out.println("synchSiteMemberships");
 
 		if (!ServerConfigurationService.getBoolean(PLUS_ROSTER_SYCHRONIZATION, PLUS_ROSTER_SYCHRONIZATION_DEFAULT)) {
 			log.info("LTI Memberships synchronization disabled.");
@@ -503,11 +516,14 @@ System.out.println("synchSiteMemberships");
 
 		// Looks like we have the requisite strings in variables :)
 		KeyPair keyPair = SakaiKeySetUtil.getCurrent();
-		AccessToken nrpsAccessToken = LTI13AccessTokenUtil.getNRPSToken(oidcTokenUrl, keyPair, clientId, deploymentId, oidcAudience);
+		StringBuffer dbs = new StringBuffer();
+		dbs.append("Getting NRPS Token...\n");
+		AccessToken nrpsAccessToken = LTI13AccessTokenUtil.getNRPSToken(oidcTokenUrl, keyPair, clientId, deploymentId, oidcAudience, dbs);
 		if ( nrpsAccessToken == null || isEmpty(nrpsAccessToken.access_token) ) {
 			log.info("Could not retrieve NRPS (Names and Roles) token from {}.  Memberships will NOT be synchronized.", oidcTokenUrl);
 			return;
 		}
+		if ( verbose() ) System.out.println(dbs.toString());
 
 		String MEDIA_TYPE_MEMBERSHIPS = "application/vnd.ims.lti-nrps.v2.membershipcontainer+json";
 		Map<String, String> headers = new TreeMap<String, String>();
@@ -522,9 +538,12 @@ System.out.println("synchSiteMemberships");
 		context.setNrpsStatus("Started");
 		contextRepository.save(context);
 
+		dbs = new StringBuffer();
+		dbs.append("Loading Context Memberships...\n");
 		InputStream is = null;
 		 try {
-			HttpResponse<InputStream> response = HttpClientUtil.sendGetStream(contextMemberships, null, headers);
+			HttpResponse<InputStream> response = HttpClientUtil.sendGetStream(contextMemberships, null, headers, dbs);
+			if ( verbose() ) System.out.println(dbs.toString());
 			is = response.body();
 		} catch (Exception e) {
 			log.error("Error retrieving NRPS (Names and Roles) data from {}", contextMemberships);
@@ -555,7 +574,7 @@ System.out.println("synchSiteMemberships");
 				if ( nextToken == null ) break;
 				if ( nextToken == JsonToken.END_ARRAY ) break;
 				Member member = mapper.readValue(jsonParser, Member.class);
-System.out.println("member="+member.email);
+				if ( verbose() ) System.out.println("processing member="+member.email);
 				count = count + 1;
 
 				SakaiLaunchJWT launchJWT = new SakaiLaunchJWT();
@@ -640,7 +659,6 @@ System.out.println("member="+member.email);
 		final org.sakaiproject.service.gradebook.shared.Assignment assignmentDefinition)
 	{
 		String contextGuid = site.getId();
-System.out.println("createLineItem site="+site.getId());
 		Optional<Context> optContext = contextRepository.findById(contextGuid);
 		Context context = null;
 		if ( optContext.isPresent() ) {
@@ -702,13 +720,13 @@ System.out.println("createLineItem site="+site.getId());
 		// Looks like we have the requisite strings in variables :)
 		// https://www.imsglobal.org/spec/lti-ags/v2p0/#creating-a-new-line-item
 		KeyPair keyPair = SakaiKeySetUtil.getCurrent();
-		AccessToken lineItemsAccessToken = LTI13AccessTokenUtil.getLineItemsToken(oidcTokenUrl, keyPair, clientId, deploymentId, oidcAudience);
+		StringBuffer dbs = new StringBuffer();
+		AccessToken lineItemsAccessToken = LTI13AccessTokenUtil.getLineItemsToken(oidcTokenUrl, keyPair, clientId, deploymentId, oidcAudience, dbs);
 		if ( lineItemsAccessToken == null || isEmpty(lineItemsAccessToken.access_token) ) {
 			log.info("Could not retrieve lineItems token from {}.  Scores will NOT be synchronized.", oidcTokenUrl);
 			return null;
 		}
-
-System.out.println("lineItemsAccessToken.access_token="+lineItemsAccessToken.access_token);
+        if ( verbose() ) System.out.println(dbs.toString());
 
 		// lineItem
 		Map<String, String> headers = new TreeMap<String, String>();
@@ -720,14 +738,15 @@ System.out.println("lineItemsAccessToken.access_token="+lineItemsAccessToken.acc
 		li.label = assignmentDefinition.getName();
 		li.tag = "42";
 		li.resourceId = assignmentId.toString();
-System.out.println("li.resourceId="+li.resourceId);
 		// li.startDateTime
 		// li.endDateTime =  assignmentDefinition.getDueDate();
 		String body = li.prettyPrintLog();
 
+		dbs = new StringBuffer();
 		 try {
-			HttpResponse<String> response = HttpClientUtil.sendPost(lineItemsUrl, body, headers);
+			HttpResponse<String> response = HttpClientUtil.sendPost(lineItemsUrl, body, headers, dbs);
 			body = response.body();
+			if ( verbose() ) System.out.println(dbs.toString());
 		} catch (Exception e) {
 			log.error("Error creating lineItem at {}", lineItemsUrl);
 			return null;
@@ -800,11 +819,13 @@ System.out.println("source="+source);
 
 		// Looks like we have the requisite strings in variables :)
 		KeyPair keyPair = SakaiKeySetUtil.getCurrent();
-		AccessToken scoreAccessToken = LTI13AccessTokenUtil.getScoreToken(oidcTokenUrl, keyPair, clientId, deploymentId, oidcAudience);
+		StringBuffer dbs = new StringBuffer();
+		AccessToken scoreAccessToken = LTI13AccessTokenUtil.getScoreToken(oidcTokenUrl, keyPair, clientId, deploymentId, oidcAudience, dbs);
 		if ( scoreAccessToken == null || isEmpty(scoreAccessToken.access_token) ) {
 			log.info("Could not retrieve lineItems token from {}.  Scores will NOT be synchronized.", oidcTokenUrl);
 			return;
 		}
+		if ( verbose() ) System.out.println(dbs.toString());
 
 		// Lets send a score
 		// https://www.imsglobal.org/spec/lti-ags/v2p0#score-publish-service
@@ -822,15 +843,18 @@ System.out.println("source="+source);
 		// TODO: Think more about this - Canvas requires this but we don't know what various values mean in Canvas
 		score.activityProgress = Score.ACTIVITY_COMPLETED;
 		score.gradingProgress = Score.GRADING_FULLYGRADED;
-System.out.println("score="+score.prettyPrintLog());
 
 		String body = score.prettyPrintLog();
 		String scoreUrl = lineItem + "/scores";
+		dbs = new StringBuffer();
+		dbs.append("Sending score ");
 
 		 try {
-			HttpResponse<String> response = HttpClientUtil.sendPost(scoreUrl, body, headers);
+			HttpResponse<String> response = HttpClientUtil.sendPost(scoreUrl, body, headers, dbs);
 			body = response.body();
-System.out.println("body="+body);
+			dbs.append("response body\n");
+			dbs.append(StringUtils.truncate(body, 1000));
+			if ( verbose() ) System.out.println(dbs.toString());
 		} catch (Exception e) {
 			log.error("Error setting score at {}", scoreUrl);
 			return;

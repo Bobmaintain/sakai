@@ -55,6 +55,11 @@ public interface PlusService {
 	boolean enabled(Site site);
 
 	/*
+	 * Note whether or not we are in verbose mode
+	 */
+	boolean verbose();
+
+	/*
 	 * Get the list of processors from ProviderServlet
 	 */
 	void setBltiProcessors(List<BLTIProcessor> bltiProcessors);
