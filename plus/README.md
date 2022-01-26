@@ -19,8 +19,11 @@ Some Properties To Make It Work
 ===============================
 
     deeplink.provider=true
-    plus.provider.autositetemplate=!worksite
+    plus.provider.enabled=true
+    plus.provider.verbose=true
     plus.allowedtools=sakai.resources
+    plus.provider.autositetemplate=!worksite
+    plus.roster.synchronization=true
     lti.role.mapping.Instructor=maintain
     lti.role.mapping.Student=access
     canvas.config.enabled=true

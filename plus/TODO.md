@@ -1,28 +1,19 @@
 
-Do we *need* 36 character primary keys?   Feels oracle-ish and low performance
+TODO LIST
+=========
 
-Figure out logical keys, including composite issuer / client id
+Figure out UI/UX best practice for pretty CRUD UIs - talk to Adrian / Earle
 
-Figure out how to best epresent LEFT JOINS in the model and online
+Put context memberships into a thread and then into a batch job
 
-Make sure Repository is the right approach
+Put lineitem creation and score sending into database for redo on failure and add batch job
 
-Auto populate created and updated
+Build pretty UI for errors
 
-Figure out JSONTrait
+Add the validation errors to debug log
 
-Figure out Settings as Map
-
-Figure out how to construct and return a LAUNCH
-
-Figure out how to return the first item in a list SubjectRepositoryImpl.java
-
-Learn how to do bi-directional replactionships efficiently
-What about orphan removal instead of cascade?
-https://thorben-janssen.com/best-practices-many-one-one-many-associations-mappings/
-
-PagingAndSortingRepository
-https://www.amitph.com/pagination-sorting-spring-data-jpa/
+THINGS TO RESEARCH
+------------------
 
 LIMIT 1
 https://www.baeldung.com/jpa-limit-query-results
@@ -31,8 +22,8 @@ Embedded ID
 https://stackoverflow.com/questions/2611619/onetomany-and-composite-primary-keys
 
 
-LESSONS
--------
+LESSONS LEARNED
+---------------
 
 NaturalId Is Hibernate-Only so forget about it.
 
