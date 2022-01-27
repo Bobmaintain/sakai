@@ -157,6 +157,7 @@ public class PlusServiceImpl implements PlusService {
 	public Launch updateAll(LaunchJWT launchJWT, Tenant tenant)
 		throws LTIException
 	{
+		if ( verbose() ) System.out.println("updateAll launchJWT="+launchJWT.prettyPrintLog());
 		if ( launchJWT == null || tenant == null ) {
 			throw new LTIException("plus.plusservice.null", null, null);
 		}
@@ -173,19 +174,19 @@ public class PlusServiceImpl implements PlusService {
 		if ( issuer == null ) {
 			missing = missing + "issuer null ";
 		} else if (! issuer.equals(tenant.getIssuer()) ) {
-			missing = missing + "issuer mismatch ";
+			missing = missing + "issuer mismatch "  + issuer + "/" + tenant.getIssuer();
 		}
 
 		if ( clientId == null ) {
 			missing = missing + "clientId null ";
 		} else if (! clientId.equals(tenant.getClientId()) ) {
-			missing = missing + "clientId mismatch ";
+			missing = missing + "clientId mismatch " + clientId + "/" + tenant.getClientId();
 		}
 
 		if ( deploymentId == null ) {
 			missing = missing + "deploymentId null ";
 		} else if (! deploymentId.equals(tenant.getDeploymentId()) ) {
-			missing = missing + "deploymentId mismatch ";
+			missing = missing + "deploymentId mismatch " + deploymentId + "/" + tenant.getDeploymentId();
 		}
 
 		if ( ! missing.equals("") ) {
@@ -779,10 +780,8 @@ System.out.println("returning linkitem id="+retval);
 	public void processGradeEvent(Event event)
 	{
 		String[] parts = StringUtils.split(event.getResource(), '/');
-System.out.println("parts.length="+parts.length);
 		if (parts.length < 5) return;
 		final String source = parts[0];
-System.out.println("source="+source);
 		if ( ! "gradebookng".equals(source) ) return;
 
 		System.out.println("processGradeEvent "+event.getResource());

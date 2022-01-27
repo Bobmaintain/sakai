@@ -457,9 +457,9 @@ System.out.println("===> request "+request.getPathInfo());
 		}
 
 		String missing = "";
-		if (! issuer.equals(tenant.getIssuer()) ) missing = missing + "issuer mismatch ";
-		if (! clientId.equals(tenant.getClientId()) ) missing = missing + "clientId mismatch ";
-		if (! deploymentId.equals(tenant.getDeploymentId()) ) missing = missing + "deploymentId mismatch ";
+		if (! issuer.equals(tenant.getIssuer()) ) missing = missing + "issuer mismatch " + issuer + "/" + tenant.getIssuer();
+		if (! clientId.equals(tenant.getClientId()) ) missing = missing + "clientId mismatch " + clientId + "/" + tenant.getClientId();
+		if (! deploymentId.equals(tenant.getDeploymentId()) ) missing = missing + "deploymentId mismatch " + deploymentId + "/" + tenant.getDeploymentId();
 
 		if ( ! missing.equals("") ) {
 		   doError(request, response, "plus.plusservice.tenant.check", missing, null);
