@@ -1257,16 +1257,16 @@ System.out.println("forwarding to url="+url.toString());
 
 		log.debug("synchSiteMembershipsOnceThenSchedule");
 
-        (new Thread(new Runnable() {
+		(new Thread(new Runnable() {
 
-                public void run() {
+				public void run() {
 
-                    long then = 0L;
+					long then = 0L;
 
-                    if (plusService.verbose() || log.isDebugEnabled()) {
-                        log.debug("Starting memberships sync. guid={}", contextGuid);
-                        then = (new Date()).getTime();
-                    }
+					if (plusService.verbose() || log.isDebugEnabled()) {
+						log.debug("Starting memberships sync. guid={}", contextGuid);
+						then = (new Date()).getTime();
+					}
 
 					try {
 						plusService.syncSiteMemberships(contextGuid, site);
@@ -1274,13 +1274,13 @@ System.out.println("forwarding to url="+url.toString());
 						e.printStackTrace();
 					}
 
-                    if (plusService.verbose() || log.isDebugEnabled()) {
-                        long now = (new Date()).getTime();
-                        log.debug("Memberships sync finished guid={}. It took {} seconds.", contextGuid, ((now - then)/1000));
+					if (plusService.verbose() || log.isDebugEnabled()) {
+						long now = (new Date()).getTime();
+						log.debug("Memberships sync finished guid={}. It took {} seconds.", contextGuid, ((now - then)/1000));
 System.out.println("Finishing thread contextGuid="+contextGuid+" time="+((now - then)/1000));
-                    }
-                }
-            }, "org.sakaiproject.plus.ProviderServlet.MembershipsSync")).start();
+					}
+				}
+			}, "org.sakaiproject.plus.ProviderServlet.MembershipsSync")).start();
 
 	}
 
