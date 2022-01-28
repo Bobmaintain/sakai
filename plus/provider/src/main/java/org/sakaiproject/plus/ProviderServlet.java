@@ -1253,13 +1253,34 @@ System.out.println("forwarding to url="+url.toString());
 		return canvas;
 	}
 
-	private void syncSiteMembershipsOnceThenSchedule(String contextGuid, Site site) throws LTIException {
+	private void syncSiteMembershipsOnceThenSchedule(String contextGuid, Site site) {
 
 		log.debug("synchSiteMembershipsOnceThenSchedule");
 
-		plusService.syncSiteMemberships(contextGuid, site);
+        (new Thread(new Runnable() {
 
-		// TODO: Schedule :)
+                public void run() {
+
+                    long then = 0L;
+
+                    if (plusService.verbose() || log.isDebugEnabled()) {
+                        log.debug("Starting memberships sync. guid={}", contextGuid);
+                        then = (new Date()).getTime();
+                    }
+
+					try {
+						plusService.syncSiteMemberships(contextGuid, site);
+					} catch (LTIException e) {
+						e.printStackTrace();
+					}
+
+                    if (plusService.verbose() || log.isDebugEnabled()) {
+                        long now = (new Date()).getTime();
+                        log.debug("Memberships sync finished guid={}. It took {} seconds.", contextGuid, ((now - then)/1000));
+System.out.println("Finishing thread contextGuid="+contextGuid+" time="+((now - then)/1000));
+                    }
+                }
+            }, "org.sakaiproject.plus.ProviderServlet.MembershipsSync")).start();
 
 	}
 
