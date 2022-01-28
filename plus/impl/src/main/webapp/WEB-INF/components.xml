@@ -66,4 +66,9 @@
           destroy-method="destroy">
     </bean>
 
+    <bean id="org.sakaiproject.plus.impl.jobs.SiteMembershipsSyncJob"
+                class="org.sakaiproject.plus.impl.jobs.SiteMembershipsSyncJob">
+          <property name="plusService"><ref bean="org.sakaiproject.plus.api.PlusService"/></property>
+    </bean>
+
 </beans>
