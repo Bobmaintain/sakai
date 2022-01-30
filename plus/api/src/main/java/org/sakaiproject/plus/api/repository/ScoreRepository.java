@@ -19,8 +19,13 @@ package org.sakaiproject.plus.api.repository;
 import java.util.List;
 
 import org.sakaiproject.plus.api.model.Score;
+import org.sakaiproject.plus.api.model.Subject;
 import org.sakaiproject.springframework.data.SpringCrudRepository;
 
 public interface ScoreRepository extends SpringCrudRepository<Score, String> {
+
+	public Score findBySubjectAndColumn(Subject subject, Long gradeBookColumn);
+
+	public Integer deleteBySubjectAndColumn(Subject subject, Long gradeBookColumn);
 
 }

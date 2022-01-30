@@ -38,12 +38,12 @@ import lombok.Setter;
 @Setter
 public class BaseLTI implements Serializable {
 
-	public final int LENGTH_GUID = 36;
-	public final int LENGTH_URI = 500;
-	public final int LENGTH_TITLE = 500;
-	public final int LENGTH_EXTERNAL_ID = 200;
-	public final int LENGTH_MEDIUMTEXT = 4000;  // Less than 4096 because Oracle
-	public final int LENGTH_SAKAI_ID = 99;
+	public static final int LENGTH_GUID = 36;
+	public static final int LENGTH_URI = 500;
+	public static final int LENGTH_TITLE = 500;
+	public static final int LENGTH_EXTERNAL_ID = 200;
+	public static final int LENGTH_MEDIUMTEXT = 4000;  // Less than 4096 because Oracle
+	public static final int LENGTH_SAKAI_ID = 99;
 
     @Column(name = "CREATOR", length = LENGTH_SAKAI_ID)
     private String creator;

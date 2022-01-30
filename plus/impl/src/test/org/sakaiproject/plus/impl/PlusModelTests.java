@@ -151,6 +151,7 @@ public class PlusModelTests extends AbstractTransactionalJUnit4SpringContextTest
 		assertEquals(newTenant.getDeploymentId(), "1");
 		assertEquals(newTenant.getOidcAuth(), "https://www.example.com/auth");
 		assertEquals(newTenant.getOidcKeySet(), "https://www.example.com/keyset");
+		assertEquals(newTenant.getVerbose(), Boolean.FALSE);
 
 		newTenant = tenantRepository.findByIssuerClientIdAndDeploymentId("https://www.example.com", "42", "1");
 		assertNotNull(newTenant);
@@ -181,21 +182,108 @@ public class PlusModelTests extends AbstractTransactionalJUnit4SpringContextTest
 		Context newContext = contextRepository.findByContextAndTenant("SI364", tenant);
 
 		LineItem lineItem = new LineItem();
+		lineItem.setId(new Long(42));
 		lineItem.setResourceId("YADA");
 		lineItem.setContext(context);
+		lineItem.setUpdatedAt(Instant.now());
+		lineItem.setSentAt(Instant.now());
+		lineItem.setStatus("Test Status");
+		lineItem.setDebugLog("Debug goes here");
+		lineItem.setSuccess(Boolean.TRUE);
 		lineItemRepository.save(lineItem);
 
 		Link link = new Link();
 		link.setLink("YADA");
 		link.setContext(context);
-		link.setLineItem(lineItem);
 		linkRepository.save(link);
 
 		Score score = new Score();
-		score.setLineItem(lineItem);
+		// Set the logical keys
+		score.setGradeBookColumnId(new Long(42));
 		score.setSubject(subject);
-		scoreRepository.save(score);
+		score.setComment("Yada");
 
+		// TODO: Get a review on my Enum skillz from Earle
+		score.setActivityProgress(org.tsugi.ags2.objects.Score.ACTIVITY_INITIALIZED);
+		score.setActivityProgress(org.tsugi.ags2.objects.Score.ACTIVITY_STARTED);
+		score.setActivityProgress(org.tsugi.ags2.objects.Score.ACTIVITY_INPROGRESS);
+		score.setActivityProgress(org.tsugi.ags2.objects.Score.ACTIVITY_SUBMITTED);
+		score.setActivityProgress(org.tsugi.ags2.objects.Score.ACTIVITY_COMPLETED);
+		Enum<Score.ACTIVITY_PROGRESS> ap = score.getActivityProgress();
+		assertEquals(ap, Score.ACTIVITY_PROGRESS.Completed);
+		assertEquals(ap.name(), org.tsugi.ags2.objects.Score.ACTIVITY_COMPLETED);
+		try {
+			score.setActivityProgress("Yada");
+			fail("score.setActivityProgress(\"Yada\"); should fail with a RunTime exception");
+		} catch (Exception e) { /* no Problem */ }
+
+
+		score.setGradingProgress(org.tsugi.ags2.objects.Score.GRADING_FULLYGRADED);
+		score.setGradingProgress(org.tsugi.ags2.objects.Score.GRADING_PENDING);
+		score.setGradingProgress(org.tsugi.ags2.objects.Score.GRADING_PENDINGMANUAL);
+		score.setGradingProgress(org.tsugi.ags2.objects.Score.GRADING_FAILED);
+		Enum<Score.GRADING_PROGRESS> gp = score.getGradingProgress();
+		assertEquals(gp, Score.GRADING_PROGRESS.Failed);
+		assertEquals(gp.name(), org.tsugi.ags2.objects.Score.GRADING_FAILED);
+		try {
+			score.setGradingProgress("Yada");
+			fail("score.setGradingProgress(\"Yada\"); should fail with a RunTime exception");
+		} catch (Exception e) { /* no Problem */ }
+
+		String scoreGuid = score.getId();
+		assertNull(scoreGuid);
+
+		scoreRepository.save(score);
+		assertEquals(score.getComment(), "Yada");
+
+		// See if JPA can do INSERT ON DUPLICATE KEY UPDATE?  NO.
+		// https://stackoverflow.com/questions/48568921/how-to-do-on-duplicate-key-update-in-spring-data-jpa
+		// https://stackoverflow.com/questions/913341/can-hibernate-work-with-mysqls-on-duplicate-key-update-syntax
+		// https://stackoverflow.com/questions/69373529/spring-data-jpa-on-duplicate-key-update-amount-account-amount-somevalue
+		scoreGuid = score.getId();
+		assertNotNull(scoreGuid);
+
+		// Change one thing and save
+		score.setGradingProgress(org.tsugi.ags2.objects.Score.GRADING_PENDINGMANUAL);
+		scoreRepository.save(score);
+		String newGuid = score.getId();
+		assertEquals(scoreGuid, newGuid);
+		gp = score.getGradingProgress();
+		assertEquals(gp, Score.GRADING_PROGRESS.PendingManual);
+
+		// Make a fresh Score with duplicate logical keys and re-save
+		Long gradeBookColumn = new Long(42);
+		score = scoreRepository.findBySubjectAndColumn(subject, gradeBookColumn);
+		if ( score == null ) {
+			score = new Score();
+			// Set the logical keys
+			score.setGradeBookColumnId(gradeBookColumn);
+			score.setSubject(subject);
+			fail("score should already exist in the database");
+		}
+		score.setActivityProgress(org.tsugi.ags2.objects.Score.ACTIVITY_INITIALIZED);
+
+		newGuid = score.getId();
+		assertNotNull(newGuid);
+		assertEquals(scoreGuid, newGuid);
+
+		scoreRepository.save(score);
+		newGuid = score.getId();
+		assertNotNull(newGuid);
+		assertEquals(scoreGuid, newGuid);
+		gp = score.getGradingProgress();
+		assertEquals(gp, Score.GRADING_PROGRESS.PendingManual);
+		assertEquals(score.getComment(), "Yada");
+
+		ap = score.getActivityProgress();
+		assertEquals(ap, Score.ACTIVITY_PROGRESS.Initialized);
+
+		// Lets delete the score record
+		Integer count = scoreRepository.deleteBySubjectAndColumn(subject, gradeBookColumn);
+		assertEquals(count, new Integer(1));
+
+		score = scoreRepository.findBySubjectAndColumn(subject, gradeBookColumn);
+		assertNull(score);
 	}
 
 	@Test

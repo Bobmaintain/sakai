@@ -29,8 +29,23 @@
         DEPLOYMENT_ID = '14af10f1-04ed-4457-8e40-a581681458ce',
         OIDC_KEYSET = 'https://devportal-stage.saas.bbpd.io/api/v1/management/applications/4c43e5f0-9eef-425f-bf7c-c81689013cb7/jwks.json',
         OIDC_TOKEN = 'https://devportal-stage.saas.bbpd.io/api/v1/gateway/oauth2/jwttoken',
-        OIDC_AUTH = 'https://devportal-stage.saas.bbpd.io/api/v1/gateway/oidcauth'
+        OIDC_AUTH = 'https://devportal-stage.saas.bbpd.io/api/v1/gateway/oidcauth',
+        ALLOWED_TOOLS = 'sakai.resource',
+        TRUST_EMAIL = 1,
+        VERBOSE = 1
     WHERE TENNANT_GUID='54321';
+
+    UPDATE PLUS_TENANT SET
+        ALLOWED_TOOLS = 'sakai.resource',
+        TRUST_EMAIL = 1,
+        VERBOSE = 1
+    ;
+
+    DROP TABLE PLUS_SCORE;
+    DROP TABLE PLUS_LINEITEM;
+    DROP TABLE PLUS_LINK;
+    DROP TABLE PLUS_SUBJECT;
+    DROP TABLE PLUS_CONTEXT;
 
     App Key (REST): 7cbbfd88-------REST-----ONLY----6ddc
     Secret(REST): ijWQ------REST----ONLY----fkn4U6

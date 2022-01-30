@@ -73,7 +73,6 @@ public class Score extends org.tsugi.jackson.objects.JacksonBase {
 	 */
 	public static final String GRADING_NOTREADY = "NotReady";	
 	
-	
 	@JsonProperty("timestamp")
 	public String timestamp;
 	@JsonProperty("scoreGiven")

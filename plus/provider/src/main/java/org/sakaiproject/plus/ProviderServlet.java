@@ -482,7 +482,7 @@ System.out.println("===> request "+request.getPathInfo());
 			} else {
 				log.debug("DeepLink setup");
 System.out.println("DeepLink setup");
-				handleDeepLinkSetup(request, response, id_token, payload);
+				handleDeepLinkSetup(request, response, tenant, id_token, payload);
 				return;
 			}
 		}
@@ -543,6 +543,7 @@ System.out.println("==== oidc_launch ====");
 			plusService.invokeProcessors(payload, PlusService.ProcessingState.afterValidation);
 
 			User user = userFinderOrCreator.findOrCreateUser(payload, false, isEmailTrustedConsumer);
+			if ( plusService.verbose() ) System.out.println("user="+user);
 
 			plusService.connectSubjectAndUser(launch.getSubject(), user);
 
@@ -576,6 +577,7 @@ System.out.println("==== oidc_launch ====");
 			}
 
 			Site site = findOrCreateSite(payload);
+			if ( plusService.verbose() ) System.out.println("site="+site);
 
 			plusService.connectContextAndSite(launch.getContext(), site);
 
@@ -921,6 +923,7 @@ System.out.println("forwarding to url="+url.toString());
 		// Get the site if it exists
 		try {
 			site = SiteService.getSite(siteId);
+			if ( plusService.verbose() ) System.out.println("Loaded existing site="+site.getId());
 			updateSiteDetailsIfChanged(site, context_title, context_label);
 			return site;
 		} catch (Exception e) {
@@ -1042,8 +1045,37 @@ System.out.println("forwarding to url="+url.toString());
 	private void handleDeepLinkInstall(HttpServletRequest request, HttpServletResponse response, SakaiLaunchJWT launchJWT, String payloadStr)
 		throws ServletException, IOException
 	{
+		// Parse and verify the payload
+		Key stateKey = localKeyPair.getPublic();
+		// Chaos Monkey : stateKey = LTI13Util.generateKeyPair().getPublic();
+		Claims claims = null;
+		try {
+			Jws<Claims> jws = Jwts.parser().setAllowedClockSkewSeconds(600).setSigningKey(stateKey).parseClaimsJws(payloadStr);
+			claims = jws.getBody();
+		} catch (io.jsonwebtoken.security.SignatureException e) {
+			doError(request, response, "plus.payload.state.signature", null, null);
+			return;
+		}
 
-		String allowedToolsConfig = ServerConfigurationService.getString("plus.allowedtools", "");
+		// Load tenant
+		String tenant_guid = (String) claims.get("tenant_guid");
+System.out.println("handleDeepLinkInstall tenant_guid="+tenant_guid);
+
+		Optional<Tenant> optTenant = tenantRepository.findById(tenant_guid);
+		Tenant tenant = null;
+		if ( optTenant.isPresent() ) {
+			tenant = optTenant.get();
+		}
+
+		if ( tenant == null ) {
+			doError(request, response, "plus.tenant.notfound", tenant_guid, null);
+			return;
+		}
+
+		String allowedToolsConfig = tenant.getAllowedTools();
+System.out.println("handleDeepLinkInstall 1 allowedTools="+allowedToolsConfig);
+		if ( isEmpty(allowedToolsConfig) ) allowedToolsConfig = ServerConfigurationService.getString("plus.allowedtools", "");
+System.out.println("handleDeepLinkInstall 2 allowedTools="+allowedToolsConfig);
 		String[] allowedTools = allowedToolsConfig.split(":");
 		List<String> allowedToolsList = Arrays.asList(allowedTools);
 
@@ -1070,23 +1102,6 @@ System.out.println("forwarding to url="+url.toString());
 			}
 			title = toolCheck.getTitle();
 		}
-
-		// Parse and verify the payload
-		Key stateKey = localKeyPair.getPublic();
-		// Chaos Monkey : stateKey = LTI13Util.generateKeyPair().getPublic();
-		Claims claims = null;
-		try {
-			Jws<Claims> jws = Jwts.parser().setAllowedClockSkewSeconds(600).setSigningKey(stateKey).parseClaimsJws(payloadStr);
-			claims = jws.getBody();
-		} catch (io.jsonwebtoken.security.SignatureException e) {
-			doError(request, response, "plus.payload.state.signature", null, null);
-			return;
-		}
-
-		// TODO: Double check the browser signature
-
-		// Load tenant and make sure it matches the Launch
-		String tenant_guid = (String) claims.get("tenant_guid");
 
 		String tool_launch = SakaiBLTIUtil.getOurServerUrl() + "/plus/sakai/" + tool_id;
 
@@ -1129,11 +1144,14 @@ System.out.println("forwarding to url="+url.toString());
 		BasicLTIUtil.sendHTMLPage(response, html);
 	}
 
-	private void handleDeepLinkSetup(HttpServletRequest request, HttpServletResponse response, String id_token, Map<String,String> payload)
+	private void handleDeepLinkSetup(HttpServletRequest request, HttpServletResponse response, Tenant tenant, String id_token, Map<String,String> payload)
 		throws ServletException, IOException
 	{
 
-		String allowedToolsConfig = ServerConfigurationService.getString("plus.allowedtools", "");
+		String allowedToolsConfig = tenant.getAllowedTools();
+System.out.println("handleDeepLinkSetup 1 allowedTools="+allowedToolsConfig);
+		if ( isEmpty(allowedToolsConfig) ) allowedToolsConfig = ServerConfigurationService.getString("plus.allowedtools", "");
+System.out.println("handleDeepLinkSetup allowedTools="+allowedToolsConfig);
 		String[] allowedTools = allowedToolsConfig.split(":");
 		List<String> allowedToolsList = Arrays.asList(allowedTools);
 

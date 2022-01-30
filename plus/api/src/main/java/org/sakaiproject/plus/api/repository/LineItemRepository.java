@@ -22,6 +22,6 @@ import org.sakaiproject.plus.api.model.Context;
 import org.sakaiproject.plus.api.model.LineItem;
 import org.sakaiproject.springframework.data.SpringCrudRepository;
 
-public interface LineItemRepository extends SpringCrudRepository<LineItem, String> {
+public interface LineItemRepository extends SpringCrudRepository<LineItem, Long> {
 
 }

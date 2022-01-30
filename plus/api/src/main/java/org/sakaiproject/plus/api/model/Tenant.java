@@ -67,8 +67,17 @@ public class Tenant extends BaseLTI implements PersistableEntity<String> {
 	@Column(name = "DEPLOYMENT_ID", length = LENGTH_EXTERNAL_ID, nullable = true)
 	private String deploymentId;
 
-	@Column(name = "TRUST_EMAIL", nullable = true)
-	private Boolean trustEmail;
+	@Column(name = "TRUST_EMAIL")
+	private Boolean trustEmail = Boolean.TRUE;
+
+	@Column(name = "TIMEZONE", length = 100, nullable = true)
+	private String timeZone;
+
+	@Column(name = "ALLOWED_TOOLS", length = 500, nullable = true)
+	private String allowedTools;
+
+	@Column(name = "VERBOSE")
+	private Boolean verbose = Boolean.FALSE;
 
 	@Column(name = "OIDC_AUTH", length = LENGTH_URI, nullable = true)
 	private String oidcAuth;

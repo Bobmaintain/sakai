@@ -63,9 +63,12 @@ public class Link extends BaseLTI implements PersistableEntity<String> {
 	@JoinColumn(name = "CONTEXT_GUID", nullable = false)
 	private Context context;
 
-	@OneToOne(cascade = CascadeType.PERSIST)
-	@JoinColumn(name = "LINEITEM_GUID", referencedColumnName = "LINEITEM_GUID", nullable = true)
-	private LineItem lineItem;
+	// We don't have a LineItem here because Plus ignores Basic Outcomes.
+	// Sakai has no internal concept of a single per-tool grade to return anyways.
+	// So we are all in on dynamically creating lineItems that correspond to
+	// a GB_GRADABLE_OBJECT - if we were to someday model a basic outcome
+	// we would make a differnet class, perhaps one that extends and overrides
+	// LineItem.
 
 	@Column(name = "TITLE", length = LENGTH_TITLE, nullable = true)
 	private String title;

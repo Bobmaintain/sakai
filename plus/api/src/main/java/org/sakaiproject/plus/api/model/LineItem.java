@@ -45,15 +45,16 @@ import lombok.Setter;
   indexes = { @Index(columnList = "RESOURCE_ID, CONTEXT_GUID") },
   uniqueConstraints = { @UniqueConstraint(columnNames = { "RESOURCE_ID", "CONTEXT_GUID" }) }
 )
+
+// https://www.imsglobal.org/spec/lti-ags/v2p0#line-item-service-scope-and-allowed-http-methods
 @Getter
 @Setter
-public class LineItem extends BaseLTI implements PersistableEntity<String> {
+public class LineItem extends Upstream implements PersistableEntity<Long> {
 
+	// This is in effect a 1-to-1 with GB_GRADABLE_OBJECT_T.ID
 	@Id
-	@Column(name = "LINEITEM_GUID", length = LENGTH_GUID, nullable = false)
-	@GeneratedValue(generator = "uuid")
-	@GenericGenerator(name = "uuid", strategy = "uuid2")
-	private String id;
+	@Column(name = "SAKAI_GRADABLE_OBJECT_ID", unique=true, nullable = false)
+	private Long id;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "CONTEXT_GUID", nullable = false)
@@ -65,17 +66,17 @@ public class LineItem extends BaseLTI implements PersistableEntity<String> {
 	private Link link;
 
 	// The AGS resourceId - recommended
-	@Column(name = "RESOURCE_ID", length = LENGTH_EXTERNAL_ID, nullable = true)
+	@Column(name = "RESOURCE_ID", length = BaseLTI.LENGTH_EXTERNAL_ID, nullable = true)
 	private String resourceId;
 
-	@Column(name = "TAG", length = LENGTH_EXTERNAL_ID, nullable = true)
+	@Column(name = "TAG", length = BaseLTI.LENGTH_EXTERNAL_ID, nullable = true)
 	private String tag;
 
-	@Column(name = "LABEL", length = LENGTH_TITLE, nullable = true)
+	@Column(name = "LABEL", length = BaseLTI.LENGTH_TITLE, nullable = true)
 	private String label;
 
 	@Column(name = "SCOREMAXIMUM")
-	private Integer scoreMaximum;
+	private Double scoreMaximum;
 
 	@Column(name = "STARTDATETIME")
 	private Instant startDateTime;

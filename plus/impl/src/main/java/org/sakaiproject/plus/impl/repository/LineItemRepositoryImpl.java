@@ -29,6 +29,6 @@ import org.sakaiproject.springframework.data.SpringCrudRepositoryImpl;
 
 import org.springframework.transaction.annotation.Transactional;
 
-public class LineItemRepositoryImpl extends SpringCrudRepositoryImpl<LineItem, String>  implements LineItemRepository {
+public class LineItemRepositoryImpl extends SpringCrudRepositoryImpl<LineItem, Long>  implements LineItemRepository {
 
 }
