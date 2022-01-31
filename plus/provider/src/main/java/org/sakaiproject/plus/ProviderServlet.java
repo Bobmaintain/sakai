@@ -709,7 +709,7 @@ System.out.println("forwarding to url="+url.toString());
 		log.debug("==== oidc_repost ====");
 		System.out.println("==== oidc_repost ====");
 		StringBuilder r = new StringBuilder();
-		r.append("<form id=\"popform\" method=\"post\" target=\"_blank\" action=\"");
+		r.append("<form id=\"popform\" method=\"post\" action=\"");
 		r.append(SakaiBLTIUtil.getOurServletPath(request));
 		r.append("\">\n");
 		r.append("<input type=\"hidden\" name=\"repost\" value=\"42\">\n");
@@ -722,16 +722,28 @@ System.out.println("forwarding to url="+url.toString());
 			r.append(value);
 			r.append("\">\n");
 		}
-		r.append("<input id=\"repost_submit\" onclick=\"repost_click();\" type=\"submit\" name=\"POP\" value=\"Open Sakai Plus in a New Window\">\n");
+		r.append("<input id=\"repost_submit\" style=\"display:none;\" onclick=\"repost_click();\" type=\"submit\" name=\"POP\" value=\"Open Sakai Plus in a New Window\">\n");
 		r.append("</form>\n");
 		r.append("<div id=\"repost_done\" style=\"display: none; border: 1px; margin: 5px; padding 5px;\">\n");
 		r.append("<button type=\"button\" onclick=\"return false;\">\n");
 		r.append("This tool was successfully loaded in a new browser window. Reload the page to access the tool again.\n");
 		r.append("</button></div>\n");
-		r.append("<script>function repost_click() {\n");
+
+		r.append("<script>\n");
+		r.append("function repost_click() {\n");
 		r.append("document.getElementById(\"repost_submit\").style.display = \"none\";\n");
 		r.append("document.getElementById(\"repost_done\").style.display = \"block\";\n");
-		r.append("}</script>\n");
+		r.append("}\n");
+
+		// Already in New Window - automatically submit
+		r.append("if ( window == window.parent ) {\n");
+		r.append("document.getElementById('popform').submit();\n");
+		r.append("} else {\n");
+		r.append("document.getElementById('repost_submit').style.display = 'block';\n");
+		r.append("document.getElementById('popform').target = '_blank';\n");
+		r.append("}\n");
+
+		r.append("</script>\n");
 		BasicLTIUtil.sendHTMLPage(response, r.toString());
 	}
 
@@ -1117,6 +1129,7 @@ System.out.println("handleDeepLinkInstall 2 allowedTools="+allowedToolsConfig);
 			dlr.data = launchJWT.deep_link.data;
 		}
 		dlr.deployment_id = launchJWT.deployment_id;
+		dlr.issuer = launchJWT.audience; // ClientId?
 		dlr.audience = launchJWT.issuer;
 		String deep_link_return_url = launchJWT.deep_link.deep_link_return_url;
 

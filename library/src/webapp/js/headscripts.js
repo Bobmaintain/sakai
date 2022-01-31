@@ -276,6 +276,9 @@ function setupMarkupOutsideIframe(id)
     var classes = document.getElementsByClassName("Mrphs-portalWrapper").length;
     if ( classes > 0 ) return;
 
+    var already = document.getElementsByClassName("Mrphs-outside-frame-div").length;
+    if ( already > 0 ) return;
+
     let div = document.createElement("div");
     div.classList.add('Mrphs-outside-frame-div');
     div.clear = "both";
