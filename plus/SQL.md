@@ -9,19 +9,14 @@
     select TENNANT_GUID, TITLE, TRUST_EMAIL from PLUS_TENANT;
 
 
-    select TENNANT_GUID, TITLE, TRUST_EMAIL, ISSUER, CLIENT_ID, DEPLOYMENT_ID, OIDC_KEYSET, OIDC_TOKEN from PLUS_TENANT;
+    select TENNANT_GUID, TITLE, TRUST_EMAIL, ISSUER, CLIENT_ID, DEPLOYMENT_ID, OIDC_KEYSET, OIDC_TOKEN, OIDC_AUTH from PLUS_TENANT;
 
-    +--------------+------------+-------------+--------------------------------+-------------------+----------------------------------------------+------------------------------------------------------+---------------------------------------------------+
-    | TENNANT_GUID | TITLE      | TRUST_EMAIL | ISSUER                         | CLIENT_ID         | DEPLOYMENT_ID                                | OIDC_KEYSET                                          | OIDC_TOKEN                                        |
-    +--------------+------------+-------------+--------------------------------+-------------------+----------------------------------------------+------------------------------------------------------+---------------------------------------------------+
-    | 123456       | Sakai Plus | NULL        | https://canvas.instructure.com | 85530000000000147 | 326:a16deed8f169b120bdd14743e67ca7916eaea622 | https://canvas.instructure.com/api/lti/security/jwks | https://canvas.instructure.com/login/oauth2/token |
-    +--------------+------------+-------------+--------------------------------+-------------------+----------------------------------------------+------------------------------------------------------+---------------------------------------------------+
+    +--------------+------------+-------------+--------------------------------+--------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------+--------------------------------------------------------------+
+    | TENNANT_GUID | TITLE      | TRUST_EMAIL | ISSUER                         | CLIENT_ID                            | DEPLOYMENT_ID                                | OIDC_KEYSET                                                                                                        | OIDC_TOKEN                                                          | OIDC_AUTH                                                    |
+    | 123456       | Sakai Plus | NULL        | https://canvas.instructure.com | 85530000000000147                    | 326:a16deed8f169b120bdd14743e67ca7916eaea622 | https://canvas.instructure.com/api/lti/security/jwks                                                               | https://canvas.instructure.com/login/oauth2/token                   | https://canvas.instructure.com/api/lti/authorize_redirect    |
+    | 54321        | Blackboard | NULL        | https://blackboard.com         | 4c43e5f0-9eef-425f-bf7c-c81689013cb7 | 14af10f1-04ed-4457-8e40-a581681458ce         | https://devportal-stage.saas.bbpd.io/api/v1/management/applications/4c43e5f0-9eef-425f-bf7c-c81689013cb7/jwks.json | https://devportal-stage.saas.bbpd.io/api/v1/gateway/oauth2/jwttoken | https://devportal-stage.saas.bbpd.io/api/v1/gateway/oidcauth |
 
     https://dev1.sakaicloud.com/plus/sakai/canvas-config.json?guid=123456
-
-    INSERT INTO PLUS_TENANT (TENNANT_GUID, TITLE) VALUES ('54321', 'Blackboard');
-
-    https://dev1.sakaicloud.com/plus/sakai/canvas-config.json?guid=54321
 
     UPDATE PLUS_TENANT SET
         ISSUER = 'https://blackboard.com',
@@ -30,13 +25,13 @@
         OIDC_KEYSET = 'https://devportal-stage.saas.bbpd.io/api/v1/management/applications/4c43e5f0-9eef-425f-bf7c-c81689013cb7/jwks.json',
         OIDC_TOKEN = 'https://devportal-stage.saas.bbpd.io/api/v1/gateway/oauth2/jwttoken',
         OIDC_AUTH = 'https://devportal-stage.saas.bbpd.io/api/v1/gateway/oidcauth',
-        ALLOWED_TOOLS = 'sakai.resource',
+        ALLOWED_TOOLS = 'sakai.resources',
         TRUST_EMAIL = 1,
         VERBOSE = 1
     WHERE TENNANT_GUID='54321';
 
     UPDATE PLUS_TENANT SET
-        ALLOWED_TOOLS = 'sakai.resource',
+        ALLOWED_TOOLS = 'sakai.site:sakai.resources:sakai.lessonbuildertool:sakai.lessonbuildertool:sakai.gradebookng:sakai.conversations:sakai.assignment.grades:sakai.mycalendar:sakai.podcasts:sakai.poll:sakai.syllabus',
         TRUST_EMAIL = 1,
         VERBOSE = 1
     ;
