@@ -323,6 +323,9 @@ public class ProviderServlet extends HttpServlet {
 
 		// TODO: Test this when we have some sample processors - mostly worry about classloader issues
 		plusService.setBltiProcessors(bltiProcessors);
+
+		// Warm up the keyset
+		KeyPair kp = SakaiKeySetUtil.getCurrent();
 	}
 
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -798,7 +801,7 @@ System.out.println("forwarding to url="+url.toString());
 				throw new LTIException( "plus.launch.kid.load.fail", oidcKeySet, null);
 			}
 
-			// Stoere the new keyset in the Tenant
+			// Store the new keyset in the Tenant
 			if ( keySet != null ) {
 				tenant.setCacheKeySet(keySet.toString());
 				tenantRepository.save(tenant);
