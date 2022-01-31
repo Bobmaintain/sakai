@@ -46,45 +46,45 @@ import lombok.Setter;
 )
 @Getter
 @Setter
-public class Context extends BaseLTI implements PersistableEntity<String> {
+public class Context extends Upstream implements PersistableEntity<String> {
 
 	@Id
-	@Column(name = "CONTEXT_GUID", length = LENGTH_GUID, nullable = false)
+	@Column(name = "CONTEXT_GUID", length = BaseLTI.LENGTH_GUID, nullable = false)
 	@GeneratedValue(generator = "uuid")
 	@GenericGenerator(name = "uuid", strategy = "uuid2")
 	private String id;
 
-	@Column(name = "CONTEXT", length = LENGTH_EXTERNAL_ID, nullable = false)
+	@Column(name = "CONTEXT", length = BaseLTI.LENGTH_EXTERNAL_ID, nullable = false)
 	private String context;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "TENNANT_GUID", nullable = false)
 	private Tenant tenant;
 
-	@Column(name = "SAKAI_SITE_ID", length = LENGTH_SAKAI_ID, nullable = true)
+	@Column(name = "SAKAI_SITE_ID", length = BaseLTI.LENGTH_SAKAI_ID, nullable = true)
 	private String sakaiSiteId;
 
-	@Column(name = "TITLE", length = LENGTH_TITLE, nullable = true)
+	@Column(name = "TITLE", length = BaseLTI.LENGTH_TITLE, nullable = true)
 	private String title;
 
-	@Column(name = "LABEL", length = LENGTH_TITLE, nullable = true)
+	@Column(name = "LABEL", length = BaseLTI.LENGTH_TITLE, nullable = true)
 	private String label;
 
 	// launchjwt.endpoint.lineitems
-	@Column(name = "LINEITEMS", length = LENGTH_URI, nullable = true)
+	@Column(name = "LINEITEMS", length = BaseLTI.LENGTH_URI, nullable = true)
 	private String lineItems;
 
-	@Column(name = "LINEITEMS_TOKEN", length = LENGTH_URI, nullable = true)
+	@Column(name = "LINEITEMS_TOKEN", length = BaseLTI.LENGTH_URI, nullable = true)
 	private String lineItemsToken;
 
-	@Column(name = "GRADE_TOKEN", length = LENGTH_URI, nullable = true)
+	@Column(name = "GRADE_TOKEN", length = BaseLTI.LENGTH_URI, nullable = true)
 	private String gradeToken;
 
 	// launchjwt.names_and_roles.context_memberships_url
-	@Column(name = "CONTEXT_MEMBERSHIPS", length = LENGTH_URI, nullable = true)
+	@Column(name = "CONTEXT_MEMBERSHIPS", length = BaseLTI.LENGTH_URI, nullable = true)
 	private String contextMemberships;
 
-	@Column(name = "NRPS_TOKEN", length = LENGTH_URI, nullable = true)
+	@Column(name = "NRPS_TOKEN", length = BaseLTI.LENGTH_URI, nullable = true)
 	private String nrpsToken;
 
 	@Column(name = "NRPS_JOB_START", nullable = true)
@@ -93,7 +93,7 @@ public class Context extends BaseLTI implements PersistableEntity<String> {
 	@Column(name = "NRPS_JOB_FINISH", nullable = true)
 	private Instant nrpsFinish;
 
-	@Column(name = "NRPS_JOB_STATUS", length = LENGTH_TITLE, nullable = true)
+	@Column(name = "NRPS_JOB_STATUS", length = BaseLTI.LENGTH_TITLE, nullable = true)
 	private String nrpsStatus;
 
 	@Column(name = "NRPS_JOB_COUNT", nullable = true)
