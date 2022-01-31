@@ -829,7 +829,7 @@ System.out.println("returning lineitem id="+retval);
 	 */
 	// https://www.imsglobal.org/spec/lti-ags/v2p0#score-publish-service
 	// https://www.imsglobal.org/spec/lti-ags/v2p0#comment-0
-	@Transactional(readOnly = true)
+	@Transactional
 	public void processGradeEvent(Event event)
 	{
 		String[] parts = StringUtils.split(event.getResource(), '/');
