@@ -45,29 +45,29 @@ import lombok.Setter;
 )
 @Getter
 @Setter
-public class Tenant extends Upstream implements PersistableEntity<String> {
+public class Tenant extends BaseLTI implements PersistableEntity<String> {
 
 	@Id
-	@Column(name = "TENNANT_GUID", length = BaseLTI.LENGTH_GUID, nullable = false)
+	@Column(name = "TENNANT_GUID", length = LENGTH_GUID, nullable = false)
 	@GeneratedValue(generator = "uuid")
 	@GenericGenerator(name = "uuid", strategy = "uuid2")
 	private String id;
 
-	@Column(name = "TITLE", length = BaseLTI.LENGTH_TITLE, nullable = false)
+	@Column(name = "TITLE", length = LENGTH_TITLE, nullable = false)
 	private String title;
 
-	@Column(name = "DESCRIPTION", length = BaseLTI.LENGTH_MEDIUMTEXT, nullable = true)
+	@Column(name = "DESCRIPTION", length = LENGTH_MEDIUMTEXT, nullable = true)
 	private String description;
 
 	// Issuer and client_id can be null while a key is being built but a key is not usable
 	// until both fields are defined and the other values are present
-	@Column(name = "ISSUER", length = BaseLTI.LENGTH_EXTERNAL_ID, nullable = true)
+	@Column(name = "ISSUER", length = LENGTH_EXTERNAL_ID, nullable = true)
 	protected String issuer;
 
-	@Column(name = "CLIENT_ID", length = BaseLTI.LENGTH_EXTERNAL_ID, nullable = true)
+	@Column(name = "CLIENT_ID", length = LENGTH_EXTERNAL_ID, nullable = true)
 	private String clientId;
 
-	@Column(name = "DEPLOYMENT_ID", length = BaseLTI.LENGTH_EXTERNAL_ID, nullable = true)
+	@Column(name = "DEPLOYMENT_ID", length = LENGTH_EXTERNAL_ID, nullable = true)
 	private String deploymentId;
 
 	// Default this to true - it is the most common approach
@@ -83,20 +83,20 @@ public class Tenant extends Upstream implements PersistableEntity<String> {
 	@Column(name = "VERBOSE")
 	private Boolean verbose = Boolean.FALSE;
 
-	@Column(name = "OIDC_AUTH", length = BaseLTI.LENGTH_URI, nullable = true)
+	@Column(name = "OIDC_AUTH", length = LENGTH_URI, nullable = true)
 	private String oidcAuth;
 
-	@Column(name = "OIDC_KEYSET", length = BaseLTI.LENGTH_URI, nullable = true)
+	@Column(name = "OIDC_KEYSET", length = LENGTH_URI, nullable = true)
 	private String oidcKeySet;
 
-	@Column(name = "OIDC_TOKEN", length = BaseLTI.LENGTH_URI, nullable = true)
+	@Column(name = "OIDC_TOKEN", length = LENGTH_URI, nullable = true)
 	private String oidcToken;
 
 	// This is usually optional except for D2L
-	@Column(name = "OIDC_AUDIENCE", length = BaseLTI.LENGTH_EXTERNAL_ID, nullable = true)
+	@Column(name = "OIDC_AUDIENCE", length = LENGTH_EXTERNAL_ID, nullable = true)
 	private String oidcAudience;
 
-	@Column(name = "CACHE_KEYSET", length = BaseLTI.LENGTH_MEDIUMTEXT, nullable = true)
+	@Column(name = "CACHE_KEYSET", length = LENGTH_MEDIUMTEXT, nullable = true)
 	private String cacheKeySet;
 
 	public boolean isDraft()

@@ -52,7 +52,7 @@ import lombok.Setter;
 // https://www.imsglobal.org/spec/lti-ags/v2p0#line-item-service-scope-and-allowed-http-methods
 @Getter
 @Setter
-public class LineItem extends Upstream implements PersistableEntity<Long> {
+public class LineItem extends BaseLTI implements PersistableEntity<Long> {
 
 	// This is in effect a 1-to-1 with GB_GRADABLE_OBJECT_T.ID
 	@Id
@@ -69,13 +69,13 @@ public class LineItem extends Upstream implements PersistableEntity<Long> {
 	private Link link;
 
 	// The AGS resourceId - recommended
-	@Column(name = "RESOURCE_ID", length = BaseLTI.LENGTH_EXTERNAL_ID, nullable = true)
+	@Column(name = "RESOURCE_ID", length = LENGTH_EXTERNAL_ID, nullable = true)
 	private String resourceId;
 
-	@Column(name = "TAG", length = BaseLTI.LENGTH_EXTERNAL_ID, nullable = true)
+	@Column(name = "TAG", length = LENGTH_EXTERNAL_ID, nullable = true)
 	private String tag;
 
-	@Column(name = "LABEL", length = BaseLTI.LENGTH_TITLE, nullable = true)
+	@Column(name = "LABEL", length = LENGTH_TITLE, nullable = true)
 	private String label;
 
 	@Column(name = "SCOREMAXIMUM")

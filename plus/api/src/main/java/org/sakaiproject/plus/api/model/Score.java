@@ -57,7 +57,7 @@ import lombok.Setter;
 )
 @Getter
 @Setter
-public class Score extends Upstream implements PersistableEntity<String> {
+public class Score implements PersistableEntity<String> {
 
 	// These enums *names* must match the values in the spec as they are matched with strings at times
 	public enum ACTIVITY_PROGRESS {
@@ -100,6 +100,22 @@ public class Score extends Upstream implements PersistableEntity<String> {
 
 	@Column(name = "COMMENT", length=200, nullable = true)
 	private String comment;
+
+    @Column(name = "UPDATED_AT", nullable = true)
+    private Instant updatedAt;
+
+    @Column(name = "SENT_AT", nullable = true)
+    private Instant sentAt;
+
+    @Column(name = "SUCCESS", length=200)
+    private Boolean success = Boolean.TRUE;
+
+    @Column(name = "STATUS", length=200, nullable = true)
+    private String status;
+
+    @Lob
+    @Column(name = "DEBUG_LOG")
+    private String debugLog;
 
 	// TODO: Get a look at this from Earle
 	// The valueOf() call will throw a runtime exception if the string is not valid

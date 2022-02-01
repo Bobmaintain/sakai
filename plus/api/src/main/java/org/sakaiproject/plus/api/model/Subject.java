@@ -47,31 +47,31 @@ import lombok.Setter;
 )
 @Getter
 @Setter
-public class Subject extends Upstream implements PersistableEntity<String> {
+public class Subject extends BaseLTI implements PersistableEntity<String> {
 
 	@Id
-	@Column(name = "SUBJECT_GUID", length = BaseLTI.LENGTH_GUID, nullable = false)
+	@Column(name = "SUBJECT_GUID", length = LENGTH_GUID, nullable = false)
 	@GeneratedValue(generator = "uuid")
 	@GenericGenerator(name = "uuid", strategy = "uuid2")
 	private String id;
 
-	@Column(name = "SAKAI_USER_ID", length = BaseLTI.LENGTH_SAKAI_ID, nullable = true)
+	@Column(name = "SAKAI_USER_ID", length = LENGTH_SAKAI_ID, nullable = true)
 	private String sakaiUserId;
 
-	@Column(name = "SUBJECT", length = BaseLTI.LENGTH_URI, nullable = false)
+	@Column(name = "SUBJECT", length = LENGTH_URI, nullable = false)
 	private String subject;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "TENNANT_GUID", nullable = false)
 	private Tenant tenant;
 
-	@Column(name = "DISPLAYNAME", length = BaseLTI.LENGTH_TITLE, nullable = true)
+	@Column(name = "DISPLAYNAME", length = LENGTH_TITLE, nullable = true)
 	private String displayName;
 
-	@Column(name = "EMAIL", length = BaseLTI.LENGTH_TITLE, nullable = true)
+	@Column(name = "EMAIL", length = LENGTH_TITLE, nullable = true)
 	private String email;
 
-	@Column(name = "LOCALE", length = BaseLTI.LENGTH_TITLE, nullable = true)
+	@Column(name = "LOCALE", length = LENGTH_TITLE, nullable = true)
 	private String locale;
 
 	// vim: tabstop=4 noet

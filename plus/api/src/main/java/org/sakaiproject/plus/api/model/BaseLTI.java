@@ -23,7 +23,7 @@ import java.io.Serializable;
 
 import javax.persistence.Column;
 import javax.persistence.Lob;
-import javax.persistence.Embeddable;
+import javax.persistence.MappedSuperclass;
 
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -33,7 +33,7 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 
-@Embeddable
+@MappedSuperclass
 @Getter
 @Setter
 public class BaseLTI implements Serializable {
@@ -45,16 +45,30 @@ public class BaseLTI implements Serializable {
 	public static final int LENGTH_MEDIUMTEXT = 4000;  // Less than 4096 because Oracle
 	public static final int LENGTH_SAKAI_ID = 99;
 
-    @Column(name = "CREATOR", length = LENGTH_SAKAI_ID)
-    private String creator;
+    @Column(name = "UPDATED_AT", nullable = true)
+    private Instant updatedAt;
+
+    @Column(name = "SENT_AT", nullable = true)
+    private Instant sentAt;
+
+    @Column(name = "SUCCESS", length=200)
+    private Boolean success = Boolean.TRUE;
+
+    @Column(name = "STATUS", length=200, nullable = true)
+    private String status;
+
+    @Lob
+    @Column(name = "DEBUG_LOG")
+    private String debugLog;
 
     @CreatedDate
-    @Column(name = "CREATED_AT", nullable = false)
+    @Column(name = "CREATED_AT", nullable = true)
     private Instant created_at;
 
     @Column(name = "MODIFIER", length = LENGTH_SAKAI_ID)
     private String modifier;
 
+	@LastModifiedDate
     @Column(name = "MODIFIED_AT")
     private Instant modified_at;
 
@@ -78,9 +92,6 @@ public class BaseLTI implements Serializable {
 
     @Column(name = "LOGIN_AT")
     private Instant login_at;
-
-    @Column(name = "SETTINGS")
-    private Map<String,String> settings = new HashMap<String, String> ();
 
     @Lob
     @Column(name = "JSON")

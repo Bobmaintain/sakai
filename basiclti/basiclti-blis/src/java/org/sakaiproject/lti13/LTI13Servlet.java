@@ -1092,6 +1092,7 @@ public class LTI13Servlet extends HttpServlet {
 
 		log.debug("jsonString={}", jsonString);
 
+		// TODO: Make this be a RegistrationRequest
 		Object js = JSONValue.parse(jsonString);
 		if (js == null || !(js instanceof JSONObject)) {
 			LTI13Util.return400(response, "Badly formatted JSON");
@@ -1142,6 +1143,7 @@ public class LTI13Servlet extends HttpServlet {
 
 		jso.put("client_id", client_id);
 
+		// TODO: Make this be a RegistrationResponse
 		Object toolConfigurationObj = jso.get("https://purl.imsglobal.org/spec/lti-tool-configuration");
 		if ( toolConfigurationObj instanceof JSONObject ) {
 			JSONObject toolConfiguration = (JSONObject) toolConfigurationObj;
