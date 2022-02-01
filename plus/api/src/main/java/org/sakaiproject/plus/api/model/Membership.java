@@ -16,6 +16,9 @@
 
 package org.sakaiproject.plus.api.model;
 
+import java.util.Map;
+import java.util.HashMap;
+
 import javax.persistence.Column;
 import javax.persistence.Lob;
 import javax.persistence.Embedded;

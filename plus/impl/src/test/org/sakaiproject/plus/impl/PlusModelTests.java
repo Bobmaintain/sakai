@@ -134,8 +134,8 @@ public class PlusModelTests extends AbstractTransactionalJUnit4SpringContextTest
 		assertTrue(tenant.isDraft());
 		tenant.setOidcToken("https://www.example.com/token");
 		assertFalse(tenant.isDraft());
-		Map<String, String> settings = tenant.getSettings();
-		settings.put("secret", "42");
+		// Map<String, String> settings = tenant.getSettings();
+		// settings.put("secret", "42");
 		tenantRepository.save(tenant);
 		String tenantId = tenant.getId();
 

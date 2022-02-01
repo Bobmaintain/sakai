@@ -16,6 +16,9 @@
 
 package org.sakaiproject.plus.api.model;
 
+import java.util.Map;
+import java.util.HashMap;
+
 import javax.persistence.Column;
 import javax.persistence.Lob;
 import javax.persistence.Embedded;
@@ -67,7 +70,7 @@ public class Link extends BaseLTI implements PersistableEntity<String> {
 	// Sakai has no internal concept of a single per-tool grade to return anyways.
 	// So we are all in on dynamically creating lineItems that correspond to
 	// a GB_GRADABLE_OBJECT - if we were to someday model a basic outcome
-	// we would make a differnet class, perhaps one that extends and overrides
+	// we would make a different class, perhaps one that extends and overrides
 	// LineItem.
 
 	@Column(name = "TITLE", length = LENGTH_TITLE, nullable = true)

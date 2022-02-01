@@ -10,6 +10,8 @@ import org.tsugi.lti13.LTI13ConstantsUtil;
 
 @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 
+// https://www.imsglobal.org/spec/lti-dr/v1p0
+// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationResponse
 /*
 {
     "issuer": "https://server.example.com",
@@ -39,6 +41,7 @@ import org.tsugi.lti13.LTI13ConstantsUtil;
     }
 }
  */
+
 public class PlatformConfiguration {
 
 	// Platform's issuer value. As per IMS Security Framework and LTI Specification, the Issuer Identifier is 

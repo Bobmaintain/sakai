@@ -16,6 +16,9 @@
 
 package org.sakaiproject.plus.api.model;
 
+import java.util.Map;
+import java.util.HashMap;
+
 import java.lang.Enum;
 import java.time.Instant;
 

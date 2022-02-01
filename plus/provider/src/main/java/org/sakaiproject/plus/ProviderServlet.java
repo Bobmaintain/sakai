@@ -28,6 +28,7 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.net.URL;
 import java.net.MalformedURLException;
+import java.net.http.HttpResponse;  // Thanks Java 11
 import java.util.*;
 
 import javax.servlet.ServletConfig;
@@ -71,6 +72,8 @@ import org.tsugi.lti13.LTI13JwtUtil;
 import org.tsugi.lti13.LTI13KeySetUtil;
 import org.tsugi.jackson.JacksonUtil;
 
+import org.tsugi.http.HttpClientUtil;
+
 import org.sakaiproject.authz.api.SecurityAdvisor;
 import org.sakaiproject.authz.cover.SecurityService;
 import org.sakaiproject.lti.api.BLTIProcessor;
@@ -113,6 +116,7 @@ import org.springframework.cache.CacheManager;
 
 import org.tsugi.lti13.objects.LaunchJWT;
 import org.sakaiproject.lti13.util.SakaiLaunchJWT;
+import org.tsugi.lti13.objects.PlatformConfiguration;
 import org.tsugi.lti13.LTI13Util;
 import org.apache.commons.lang3.StringUtils;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
@@ -135,6 +139,8 @@ import org.sakaiproject.plus.api.repository.TenantRepository;
 import org.sakaiproject.plus.api.repository.ContextRepository;
 
 import org.sakaiproject.plus.api.Launch;
+
+// import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Notes:
@@ -335,8 +341,7 @@ public class ProviderServlet extends HttpServlet {
 
 	@SuppressWarnings("unchecked")
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		log.debug("doPost {}", request.getPathInfo());
-System.out.println("===> request "+request.getPathInfo());
+		log.info("doPost {}", request.getPathInfo()); // TODO: debug
 
 		String ipAddress = request.getRemoteAddr();
 		if (log.isDebugEnabled()) {
@@ -350,14 +355,24 @@ System.out.println("===> request "+request.getPathInfo());
 			return;
 		}
 
-		String uri = request.getPathInfo(); // /oidc_login/4444
+		String uri = request.getPathInfo(); // plus/sakai/oidc_login/4444
 		String[] parts = uri.split("/");
 
 		// /plus/sakai/oidc_login/44guid44
-		// /oidc_login/44guid44
 		if (parts.length >= 3 && "oidc_login".equals(parts[1])) {
 			if ( parts.length == 3 && isNotEmpty(parts[2])) {
 				handleOIDCLogin(request, response, parts[2]);
+				return;
+			}
+			doError(request, response, "plus.oidc_login.format", uri, null);
+			return;
+		}
+
+		// /plus/sakai/dynamic/44guid44?reg_token=..&openid_configuration=https:..
+		// https://github.com/IMSGlobal/lti-dynamic-registration/blob/develop/docs/lti-dynamic-registration.md
+		if (parts.length >= 3 && "dynamic".equals(parts[1])) {
+			if ( parts.length == 3 && isNotEmpty(parts[2])) {
+				handleDynamicRegistration(request, response, parts[2]);
 				return;
 			}
 			doError(request, response, "plus.oidc_login.format", uri, null);
@@ -484,7 +499,6 @@ System.out.println("===> request "+request.getPathInfo());
 				return;
 			} else {
 				log.debug("DeepLink setup");
-System.out.println("DeepLink setup");
 				handleDeepLinkSetup(request, response, tenant, id_token, payload);
 				return;
 			}
@@ -499,8 +513,7 @@ System.out.println("DeepLink setup");
 		}
 
 		// Now we are in the oidc_launch process so we proceed with all the validation
-System.out.println("==== oidc_launch ====");
-		log.debug("==== oidc_launch ====");
+		log.info("==== oidc_launch ===="); // TODO: Debug
 
 		// For a normal launch, the target_link_uri is our guide to what is next
 		String target_link_uri = launchJWT.target_link_uri;
@@ -620,7 +633,7 @@ System.out.println("==== oidc_launch ====");
 				url.append("?panel=Main");
 			}
 
-System.out.println("forwarding to url="+url.toString());
+			log.debug("url={}", url.toString()); // TODO: Delete
 			if (log.isDebugEnabled()) {
 				log.debug("url={}", url.toString());
 			}
@@ -708,9 +721,110 @@ System.out.println("forwarding to url="+url.toString());
 		}
 	}
 
+	// https://www.imsglobal.org/spec/lti-dr/v1p0
+	// /plus/sakai/dynamic/44guid44?reg_token=..&openid_configuration=https:..
+	// @Transactional
+	protected void handleDynamicRegistration(HttpServletRequest request, HttpServletResponse response, String tenant_guid) throws ServletException, IOException {
+		log.info("==== dynamic ===="); // TODO: debug
+
+		String openid_configuration = request.getParameter("openid_configuration");
+		String registration_token = request.getParameter("registration_token");
+		String tsugi_key = request.getParameter("tsugi_key");
+		log.info("openid_configuration={} registration_token={} tsugi_key={}", openid_configuration, registration_token, tsugi_key);
+
+		Optional<Tenant> optTenant = tenantRepository.findById(tenant_guid);
+		Tenant tenant = null;
+		if ( optTenant.isPresent() ) {
+			tenant = optTenant.get();
+		}
+
+		if ( tenant == null ) {
+			doError(request, response, "plus.tenant.notfound", tenant_guid, null);
+			return;
+		}
+
+		String body;
+		StringBuffer dbs = new StringBuffer();
+        try {
+			HttpResponse<String> httpResponse = HttpClientUtil.sendGet(openid_configuration, null, null, dbs);
+			body = httpResponse.body();
+System.out.println("body="+body);
+		} catch (Exception e) {
+            log.error("Error retrieving openid_configuration at {}", openid_configuration);
+            log.error(dbs.toString());
+			doError(request, response, "plus.dynamic.badurl", openid_configuration, e);
+            return;
+		}
+
+        // Create and configure an ObjectMapper instance
+        ObjectMapper mapper = JacksonUtil.getLaxObjectMapper();
+        PlatformConfiguration platform;
+        try {
+            platform = mapper.readValue(body, PlatformConfiguration.class);
+
+            if ( platform != null ) {
+System.out.println("platform="+platform);
+
+				/*
+                String retval = returnedItem.id;
+System.out.println("returning lineitem id="+retval);
+                if ( isNotEmpty(retval) ) {
+                    dbli.setStatus("created lineitem id="+retval);
+                    dbli.setSuccess(Boolean.TRUE);
+                    if ( verbose(tenant) ) dbli.setDebugLog(dbs.toString());
+                    lineItemRepository.save(dbli);
+                    return retval;
+                }
+                dbli.setStatus("did not find returned lineitem id");
+                dbli.setDebugLog(dbs.toString());
+                lineItemRepository.save(dbli);
+				*/
+            }
+        } catch ( Exception e ) {
+            log.error("Error parsing openid_configuration at {}", openid_configuration);
+            log.error(dbs.toString());
+			doError(request, response, "plus.dynamic.parse", openid_configuration, e);
+/*
+            dbli.setStatus("Error parsing lineItem at "+lineItemsUrl);
+            dbli.setDebugLog(dbs.toString());
+            lineItemRepository.save(dbli);
+*/
+			return;
+        }
+
+/*
+  $issuer = $platform_configuration->issuer;
+  $authorization_endpoint = $platform_configuration->authorization_endpoint;
+  $token_endpoint = $platform_configuration->token_endpoint;
+  $jwks_uri = $platform_configuration->jwks_uri;
+  $registration_endpoint = $platform_configuration->registration_endpoint;
+*/
+		String issuer = platform.issuer;
+		String authorization_endpoint = platform.authorization_endpoint;
+		String token_endpoint = platform.token_endpoint;
+		String jwks_uri = platform.jwks_uri;
+		String registration_endpoint = platform.registration_endpoint;
+
+		// Check for required items
+		String missing = "";
+		if (isEmpty(issuer) ) missing = missing + " issuer";
+		if (isEmpty(authorization_endpoint) ) missing = missing + " authorization_endpoint";
+		if (isEmpty(token_endpoint) ) missing = missing + " token_endpoint";
+		if (isEmpty(jwks_uri) ) missing = missing + " jwks_uri";
+		if (isEmpty(registration_endpoint) ) missing = missing + " registration_endpoint";
+
+		if ( ! missing.equals("") ) {
+		   doError(request, response, "plus.dynamic.missing", missing, null);
+		   return;
+		}
+
+
+		BasicLTIUtil.sendHTMLPage(response, "<pre>\n"+body+"\n</pre>\n");
+	}
+
 	protected void handleRepost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		log.debug("==== oidc_repost ====");
-		System.out.println("==== oidc_repost ====");
+		log.info("==== oidc_repost ===="); // TODO: Debug
+
 		StringBuilder r = new StringBuilder();
 		r.append("<form id=\"popform\" method=\"post\" action=\"");
 		r.append(SakaiBLTIUtil.getOurServletPath(request));
@@ -1074,7 +1188,6 @@ System.out.println("forwarding to url="+url.toString());
 
 		// Load tenant
 		String tenant_guid = (String) claims.get("tenant_guid");
-System.out.println("handleDeepLinkInstall tenant_guid="+tenant_guid);
 
 		Optional<Tenant> optTenant = tenantRepository.findById(tenant_guid);
 		Tenant tenant = null;
@@ -1088,9 +1201,7 @@ System.out.println("handleDeepLinkInstall tenant_guid="+tenant_guid);
 		}
 
 		String allowedToolsConfig = tenant.getAllowedTools();
-System.out.println("handleDeepLinkInstall 1 allowedTools="+allowedToolsConfig);
 		if ( isEmpty(allowedToolsConfig) ) allowedToolsConfig = ServerConfigurationService.getString("plus.allowedtools", "");
-System.out.println("handleDeepLinkInstall 2 allowedTools="+allowedToolsConfig);
 		String[] allowedTools = allowedToolsConfig.split(":");
 		List<String> allowedToolsList = Arrays.asList(allowedTools);
 
@@ -1165,9 +1276,7 @@ System.out.println("handleDeepLinkInstall 2 allowedTools="+allowedToolsConfig);
 	{
 
 		String allowedToolsConfig = tenant.getAllowedTools();
-System.out.println("handleDeepLinkSetup 1 allowedTools="+allowedToolsConfig);
 		if ( isEmpty(allowedToolsConfig) ) allowedToolsConfig = ServerConfigurationService.getString("plus.allowedtools", "");
-System.out.println("handleDeepLinkSetup allowedTools="+allowedToolsConfig);
 		String[] allowedTools = allowedToolsConfig.split(":");
 		List<String> allowedToolsList = Arrays.asList(allowedTools);
 
@@ -1310,8 +1419,7 @@ System.out.println("handleDeepLinkSetup allowedTools="+allowedToolsConfig);
 
 					if (plusService.verbose() || log.isDebugEnabled()) {
 						long now = (new Date()).getTime();
-						log.debug("Memberships sync finished guid={}. It took {} seconds.", contextGuid, ((now - then)/1000));
-System.out.println("Finishing thread contextGuid="+contextGuid+" time="+((now - then)/1000));
+						log.info("Memberships sync finished guid={}. It took {} seconds.", contextGuid, ((now - then)/1000)); //TODO: Debug
 					}
 				}
 			}, "org.sakaiproject.plus.ProviderServlet.MembershipsSync")).start();

@@ -50,7 +50,44 @@ public class Upstream implements Serializable {
     @Column(name = "STATUS", length=200, nullable = true)
     private String status;
 
-    @Column(name = "DEBUG_LOG", length=2000, nullable = true)
+    @Lob
+    @Column(name = "DEBUG_LOG")
     private String debugLog;
+
+    @CreatedDate
+    @Column(name = "CREATED_AT", nullable = true)
+    private Instant created_at;
+
+    @Column(name = "MODIFIER", length = BaseLTI.LENGTH_SAKAI_ID)
+    private String modifier;
+
+	@LastModifiedDate
+    @Column(name = "MODIFIED_AT")
+    private Instant modified_at;
+
+    @Column(name = "DELETED")
+    private Boolean deleted = Boolean.FALSE;
+
+    @Column(name = "DELETOR", length = BaseLTI.LENGTH_SAKAI_ID)
+    private String deletor;
+
+    @Column(name = "DELETED_AT")
+    private Instant deleted_at;
+
+    @Column(name = "LOGIN_COUNT")
+    private Integer login_count;
+
+    @Column(name = "LOGIN_IP", length=64)
+    private String login_ip;
+
+    @Column(name = "LOGIN_USER", length = BaseLTI.LENGTH_SAKAI_ID)
+    private String login_user;
+
+    @Column(name = "LOGIN_AT")
+    private Instant login_at;
+
+    @Lob
+    @Column(name = "JSON")
+    private String json;
 
 }
