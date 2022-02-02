@@ -771,7 +771,7 @@ System.out.println("dueDate="+dueDate);
 			return null;
 		}
 		dbs = new StringBuffer();
-		dbs.append("Sending LineItem");
+		dbs.append("Sending LineItem\n");
 
 		// lineItem
 		Map<String, String> headers = new TreeMap<String, String>();
@@ -781,12 +781,16 @@ System.out.println("dueDate="+dueDate);
 		try {
 			HttpResponse<String> response = HttpClientUtil.sendPost(lineItemsUrl, body, headers, dbs);
 			body = response.body();
+			dbs.append("response body\n");
+			dbs.append(StringUtils.truncate(body, 1000));
+
 			if ( verbose(tenant) ) System.out.println(dbs.toString());
 		} catch (Exception e) {
-			dbli.setStatus("Error creating lineItem at "+lineItemsUrl);
-			log.error(dbs.toString());
+			dbli.setStatus("Error creating lineItem at "+lineItemsUrl+" "+e.getMessage());
 			dbli.setDebugLog(dbs.toString());
-			log.error("Error creating lineItem at {}", lineItemsUrl);
+			log.error(dbs.toString());
+			log.error(dbli.getStatus());
+			lineItemRepository.save(dbli);
 			return null;
 		}
 
@@ -810,9 +814,9 @@ System.out.println("returning lineitem id="+retval);
 				lineItemRepository.save(dbli);
 			}
 		} catch ( Exception e ) {
-			log.error("Error parsing lineItem at {}", lineItemsUrl);
+			dbli.setStatus("Error parsing lineItem at "+lineItemsUrl+" "+e.getMessage());
 			log.error(dbs.toString());
-			dbli.setStatus("Error parsing lineItem at "+lineItemsUrl);
+			log.error(dbli.getStatus());
 			dbli.setDebugLog(dbs.toString());
 			lineItemRepository.save(dbli);
 			return null;

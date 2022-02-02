@@ -41,7 +41,7 @@
     INSERT INTO PLUS_TENANT
     (TENNANT_GUID, TITLE, ISSUER, OIDC_REGISTRATION_LOCK)
     VALUES
-    ('123', 'Local Moodle', 'http://localhost:8888/moodle/', '42');
+    ('123', 'Local Moodle', 'http://localhost:8888/moodle', '42');
 
     http://localhost:8080/plus/sakai/dynamic/123?unlock_token=42
 

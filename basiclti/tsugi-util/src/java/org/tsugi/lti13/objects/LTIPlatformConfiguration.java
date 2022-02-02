@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 
 /*
-     "https://purl.imsglobal.org/spec/lti-platform-configuration ": {
+     "https://purl.imsglobal.org/spec/lti-platform-configuration": {
         "product_family_code": "ExampleLMS",
         "messages_supported": [
             {"type": "LtiResourceLinkRequest"},

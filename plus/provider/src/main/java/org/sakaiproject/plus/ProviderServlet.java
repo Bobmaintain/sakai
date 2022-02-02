@@ -145,6 +145,7 @@ import org.sakaiproject.plus.api.repository.ContextRepository;
 
 import org.sakaiproject.plus.api.Launch;
 
+
 /**
  * Notes:
  *
@@ -799,6 +800,8 @@ public class ProviderServlet extends HttpServlet {
 		ObjectMapper mapper = JacksonUtil.getLaxObjectMapper();
 		OpenIDProviderConfiguration openIDConfig;
 		try {
+			// Moodle returns an array of strings - the spec returns an array of objects
+			body = org.tsugi.HACK.HackMoodle.hackOpenIdConfiguration(body);
 			openIDConfig = mapper.readValue(body, OpenIDProviderConfiguration.class);
 
 			if ( openIDConfig == null ) {

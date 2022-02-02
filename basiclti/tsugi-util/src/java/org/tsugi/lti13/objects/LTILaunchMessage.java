@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 // For messages supported - we only define type
 
 /*
-     "https://purl.imsglobal.org/spec/lti-platform-configuration ": {
+     "https://purl.imsglobal.org/spec/lti-platform-configuration": {
         "product_family_code": "ExampleLMS",
         "messages_supported": [
             {"type": "LtiResourceLinkRequest"},

@@ -671,7 +671,7 @@ public class LTI13Servlet extends HttpServlet {
       ["RS256", "ES256"],
     "claims_supported":
       ["sub", "iss", "name", "given_name", "family_name", "nickname", "picture", "email", "locale"],
-     "https://purl.imsglobal.org/spec/lti-platform-configuration ": {
+     "https://purl.imsglobal.org/spec/lti-platform-configuration": {
         "product_family_code": "ExampleLMS",
         "messages_supported": [
             {"type": "LtiResourceLinkRequest"},
