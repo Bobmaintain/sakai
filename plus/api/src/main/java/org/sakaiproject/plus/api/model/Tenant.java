@@ -96,8 +96,16 @@ public class Tenant extends BaseLTI implements PersistableEntity<String> {
 	@Column(name = "OIDC_AUDIENCE", length = LENGTH_EXTERNAL_ID, nullable = true)
 	private String oidcAudience;
 
-	@Column(name = "CACHE_KEYSET", length = LENGTH_MEDIUMTEXT, nullable = true)
+	@Lob
+	@Column(name = "CACHE_KEYSET", nullable = true)
 	private String cacheKeySet;
+
+	@Column(name = "OIDC_REGISTRATION_ENDPOINT", length = LENGTH_URI, nullable = true)
+	private String oidcRegistrationEndpoint;
+
+	@Lob
+	@Column(name = "OIDC_REGISTRATION", nullable = true)
+	private String oidcRegistration;
 
 	public boolean isDraft()
 	{

@@ -30,6 +30,9 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 	 ]
  }
  */
+
+// https://www.imsglobal.org/spec/lti-dr/v1p0#step-3-client-registration
+// https://www.imsglobal.org/spec/lti-dr/v1p0#client-registration-response
 public class LTIToolConfiguration extends org.tsugi.jackson.objects.JacksonBase {
 
 	// "domain": "client.example.org",
@@ -44,6 +47,14 @@ public class LTIToolConfiguration extends org.tsugi.jackson.objects.JacksonBase 
 	// "target_link_uri": "https://client.example.org/lti",
 	@JsonProperty("target_link_uri")
 	public String target_link_uri;
+
+	/*
+	 * In the case where a platform is combining registration and deployment of a tool, the platform may pass the
+	 * LTI deployment_id associated with this client registration's deployment.
+	 */
+	// "deployment_id": "42",
+	@JsonProperty("deployment_id")
+	public String deployment_id;
 
 	// "custom_parameters": {
 	//	 "context_history": "$Context.id.history"

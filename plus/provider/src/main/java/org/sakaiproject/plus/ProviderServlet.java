@@ -731,8 +731,7 @@ public class ProviderServlet extends HttpServlet {
 
 		String openid_configuration = request.getParameter("openid_configuration");
 		String registration_token = request.getParameter("registration_token");
-		String tsugi_key = request.getParameter("tsugi_key");
-		log.info("openid_configuration={} registration_token={} tsugi_key={}", openid_configuration, registration_token, tsugi_key);
+		log.info("openid_configuration={} registration_token={} tenant_guid={}", openid_configuration, registration_token, tenant_guid);
 
 		Optional<Tenant> optTenant = tenantRepository.findById(tenant_guid);
 		Tenant tenant = null;
@@ -750,7 +749,6 @@ public class ProviderServlet extends HttpServlet {
 		try {
 			HttpResponse<String> httpResponse = HttpClientUtil.sendGet(openid_configuration, null, null, dbs);
 			body = httpResponse.body();
-System.out.println("body="+body);
 		} catch (Exception e) {
 			log.error("Error retrieving openid_configuration at {}", openid_configuration);
 			log.error(dbs.toString());
@@ -765,21 +763,21 @@ System.out.println("body="+body);
 
 		// Create and configure an ObjectMapper instance
 		ObjectMapper mapper = JacksonUtil.getLaxObjectMapper();
-		OpenIDProviderConfiguration platformConfig;
+		OpenIDProviderConfiguration openIDConfig;
 		try {
-			platformConfig = mapper.readValue(body, OpenIDProviderConfiguration.class);
+			openIDConfig = mapper.readValue(body, OpenIDProviderConfiguration.class);
 
-			if ( platformConfig == null ) {
+			if ( openIDConfig == null ) {
 				doError(request, response, "plus.dynamic.parse", openid_configuration, null);
 			}
 		} catch ( Exception e ) {
-			platformConfig = null;
+			openIDConfig = null;
 			doError(request, response, "plus.dynamic.parse", openid_configuration, e);
 			dbs.append("Exception\n");
 			dbs.append(e.getMessage());
 		}
 
-		if ( platformConfig == null ) {
+		if ( openIDConfig == null ) {
 			log.error("Error parsing openid_configuration at {}", openid_configuration);
 			log.error(dbs.toString());
 			tenant.setStatus("Error parsing openid_configuration at "+openid_configuration);
@@ -788,11 +786,12 @@ System.out.println("body="+body);
 			return;
 		}
 
-		String issuer = platformConfig.issuer;
-		String authorization_endpoint = platformConfig.authorization_endpoint;
-		String token_endpoint = platformConfig.token_endpoint;
-		String jwks_uri = platformConfig.jwks_uri;
-		String registration_endpoint = platformConfig.registration_endpoint;
+		// TODO: Make sure issuer matches
+		String issuer = openIDConfig.issuer;
+		String authorization_endpoint = openIDConfig.authorization_endpoint;
+		String token_endpoint = openIDConfig.token_endpoint;
+		String jwks_uri = openIDConfig.jwks_uri;
+		String registration_endpoint = openIDConfig.registration_endpoint;
 
 		// Check for required items
 		String missing = "";
@@ -857,19 +856,93 @@ System.out.println("body="+body);
 		ltitc.addCommonClaims();
 		ltitc.domain = domain;
 		ltitc.description = description;
-		// TODO: ltitc.target_link_uri = description;
-		// TODO: custom
 
 		LTILaunchMessage lm = new LTILaunchMessage();
 		lm.type = LaunchJWT.MESSAGE_TYPE_LAUNCH;
-		lm.label = "Label goes here";  // TODO: Get moar clever here.
+		lm.label = "Sakai Plus";  // TODO: A better title
+		lm.target_link_uri = serverUrl + "/plus/sakai/sakai.site";
+		ltitc.messages.add(lm);
+
+		lm = new LTILaunchMessage();
+		lm.type = LaunchJWT.MESSAGE_TYPE_DEEP_LINK;
+		lm.label = "Sakai Plus Tools";  // TODO: A better title
+		lm.target_link_uri = serverUrl + "/plus/sakai/content.item";
 		ltitc.messages.add(lm);
 
 		reg.lti_tool_configuration = ltitc;
 
-		String regs = reg.prettyPrintLog();
+		Map<String, String> headers = new HashMap<String, String>();
+		headers.put("Authorization", "Bearer "+registration_token);
+		headers.put("Content-type", "application/json");
 
-		BasicLTIUtil.sendHTMLPage(response, "<pre>\n"+regs+"\n</pre>\n");
+		String regs = reg.prettyPrintLog();
+		body = null;
+		try {
+			HttpResponse<String> registrationResponse = HttpClientUtil.sendPost(registration_endpoint, regs, headers, dbs);
+			body = registrationResponse.body();
+			if ( isEmpty(body) ) {
+				doError(request, response, "plus.dynamic.registration.post", null, null);
+			}
+		} catch (Exception e) {
+			body = null;
+			log.error("Error posting client registration {}", registration_endpoint, e);
+			doError(request, response, "plus.dynamic.registration.post", null, e);
+		}
+
+		// Remember the registration
+		tenant.setOidcRegistration(body);
+
+		if ( isEmpty(body) ) {
+			tenant.setStatus("Error posting client registration "+registration_endpoint);
+			tenant.setDebugLog(dbs.toString());
+			log.error(dbs.toString());
+			tenantRepository.save(tenant);
+			return;
+		}
+
+		// Create and configure an ObjectMapper instance
+		mapper = JacksonUtil.getLaxObjectMapper();
+		OpenIDClientRegistration platformResponse;
+		try {
+			platformResponse = mapper.readValue(body, OpenIDClientRegistration.class);
+
+			if ( platformResponse == null ) {
+				doError(request, response, "plus.dynamic.parse", openid_configuration, null);
+			}
+		} catch ( Exception e ) {
+			platformResponse = null;
+			doError(request, response, "plus.dynamic.parse", openid_configuration, e);
+			dbs.append("Exception\n");
+			dbs.append(e.getMessage());
+		}
+
+		if ( platformResponse == null || platformResponse.lti_tool_configuration == null) {
+			tenant.setStatus("Error parsing client registration "+registration_endpoint);
+			tenant.setDebugLog(dbs.toString());
+			log.error(dbs.toString());
+			tenantRepository.save(tenant);
+			return;
+		}
+
+		LTIToolConfiguration tcResponse = platformResponse.lti_tool_configuration;
+		String deployment_id = tcResponse.deployment_id;
+
+		tenant.setOidcAuth(openIDConfig.authorization_endpoint);
+		tenant.setOidcToken(openIDConfig.token_endpoint);
+		tenant.setOidcKeySet(openIDConfig.jwks_uri);
+		tenant.setOidcRegistrationEndpoint(openIDConfig.registration_endpoint);
+		if ( ! isEmpty(deployment_id) ) {
+			tenant.setDeploymentId(deployment_id);
+			tenant.setStatus("Registration "+tenant_guid+" complete with deployment_id "+deployment_id);
+		} else {
+			tenant.setStatus("Registration "+tenant_guid+" finished, but without deployment_id");
+		}
+
+		tenant.setDebugLog(dbs.toString());
+		tenantRepository.save(tenant);
+		log.info(tenant.getStatus());
+
+		BasicLTIUtil.sendHTMLPage(response, "<pre>\n"+body+"\n</pre>\n");
 	}
 
 	protected void handleRepost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
