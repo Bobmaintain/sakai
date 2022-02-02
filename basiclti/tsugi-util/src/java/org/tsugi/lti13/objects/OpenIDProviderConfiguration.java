@@ -50,6 +50,10 @@ public class OpenIDProviderConfiguration extends org.tsugi.jackson.objects.Jacks
 	@JsonProperty("issuer")
 	public String issuer;
 
+	// Response-only
+	@JsonProperty("client_id")
+	public String client_id;
+
 	// URL of the OAuth 2.0 Authorization Endpoint. 
 	@JsonProperty("authorization_endpoint")
 	public String authorization_endpoint;

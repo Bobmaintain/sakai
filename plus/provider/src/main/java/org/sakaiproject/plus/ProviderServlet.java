@@ -123,6 +123,7 @@ import org.sakaiproject.lti13.util.SakaiLaunchJWT;
 import org.tsugi.lti13.LTI13Util;
 import org.tsugi.lti13.LTI13ConstantsUtil;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import org.apache.http.client.utils.URIBuilder;
@@ -253,6 +254,15 @@ public class ProviderServlet extends HttpServlet {
 			return;
 		}
 		PrintWriter out = response.getWriter();
+		out.println(rb.getString(s));
+	}
+
+	// TODO: Make this a *lot* prettier and add forward to knowledge base feature :)
+	public void addError(PrintWriter out, String s, String message, Throwable e) throws java.io.IOException {
+		if (e != null) {
+			log.error(e.getLocalizedMessage(), e);
+		}
+		log.info("{}: {}", rb.getString(s), message);
 		out.println(rb.getString(s));
 	}
 
@@ -744,6 +754,16 @@ public class ProviderServlet extends HttpServlet {
 			return;
 		}
 
+		PrintWriter out = response.getWriter();
+		out.println("<p><strong>Starting IMS LTI Dynamic Registration Process for tenant ");
+		out.println(htmlEscape(tenant_guid));
+		out.println(" (<a href=\"https://www.imsglobal.org/spec/lti-dr/v1p0\" target=\"_blank\">specification</a>)");
+		out.println("</strong></p>\n");
+
+		out.println("<p><strong>OpenID Configuration URL:</strong><br/>");
+		out.println(htmlEscape(openid_configuration));
+		out.println("</p>\n");
+
 		String body;
 		StringBuffer dbs = new StringBuffer();
 		try {
@@ -752,7 +772,7 @@ public class ProviderServlet extends HttpServlet {
 		} catch (Exception e) {
 			log.error("Error retrieving openid_configuration at {}", openid_configuration);
 			log.error(dbs.toString());
-			doError(request, response, "plus.dynamic.badurl", openid_configuration, e);
+			addError(out, "plus.dynamic.badurl", openid_configuration, e);
 			tenant.setStatus("Error retrieving openid_configuration at "+openid_configuration);
 			dbs.append("Exception\n");
 			dbs.append(e.getMessage());
@@ -761,6 +781,8 @@ public class ProviderServlet extends HttpServlet {
 			return;
 		}
 
+		out.println(togglePre("Retrieved OpenID Configuration", body));
+
 		// Create and configure an ObjectMapper instance
 		ObjectMapper mapper = JacksonUtil.getLaxObjectMapper();
 		OpenIDProviderConfiguration openIDConfig;
@@ -768,11 +790,11 @@ public class ProviderServlet extends HttpServlet {
 			openIDConfig = mapper.readValue(body, OpenIDProviderConfiguration.class);
 
 			if ( openIDConfig == null ) {
-				doError(request, response, "plus.dynamic.parse", openid_configuration, null);
+				addError(out, "plus.dynamic.parse", openid_configuration, null);
 			}
 		} catch ( Exception e ) {
 			openIDConfig = null;
-			doError(request, response, "plus.dynamic.parse", openid_configuration, e);
+			addError(out, "plus.dynamic.parse", openid_configuration, e);
 			dbs.append("Exception\n");
 			dbs.append(e.getMessage());
 		}
@@ -802,7 +824,7 @@ public class ProviderServlet extends HttpServlet {
 		if (isEmpty(registration_endpoint) ) missing = missing + " registration_endpoint";
 
 		if ( ! missing.equals("") ) {
-		   doError(request, response, "plus.dynamic.missing", missing, null);
+		   addError(out, "plus.dynamic.missing", missing, null);
 		   return;
 		}
 
@@ -817,7 +839,7 @@ public class ProviderServlet extends HttpServlet {
 			host = netUrl.getHost();
 			domain = ServerConfigurationService.getString("plus.dynamic.domain", host);
 		} catch (MalformedURLException e) {
-			doError(request, response, "plus.dynamic.missing.domain", e.getMessage(), e.getCause());
+			addError(out, "plus.dynamic.missing.domain", e.getMessage(), e.getCause());
 			return;
 		}
 
@@ -876,18 +898,21 @@ public class ProviderServlet extends HttpServlet {
 		headers.put("Content-type", "application/json");
 
 		String regs = reg.prettyPrintLog();
+		out.println(togglePre("Sending OpenID Client Registration Request", regs));
 		body = null;
 		try {
 			HttpResponse<String> registrationResponse = HttpClientUtil.sendPost(registration_endpoint, regs, headers, dbs);
 			body = registrationResponse.body();
 			if ( isEmpty(body) ) {
-				doError(request, response, "plus.dynamic.registration.post", null, null);
+				addError(out, "plus.dynamic.registration.post", null, null);
 			}
 		} catch (Exception e) {
 			body = null;
 			log.error("Error posting client registration {}", registration_endpoint, e);
-			doError(request, response, "plus.dynamic.registration.post", null, e);
+			addError(out, "plus.dynamic.registration.post", null, e);
 		}
+
+		out.println(togglePre("Received OpenID Client Registration Response", body));
 
 		// Remember the registration
 		tenant.setOidcRegistration(body);
@@ -907,16 +932,16 @@ public class ProviderServlet extends HttpServlet {
 			platformResponse = mapper.readValue(body, OpenIDClientRegistration.class);
 
 			if ( platformResponse == null ) {
-				doError(request, response, "plus.dynamic.parse", openid_configuration, null);
+				addError(out, "plus.dynamic.parse", openid_configuration, null);
 			}
 		} catch ( Exception e ) {
 			platformResponse = null;
-			doError(request, response, "plus.dynamic.parse", openid_configuration, e);
+			addError(out, "plus.dynamic.parse", openid_configuration, e);
 			dbs.append("Exception\n");
 			dbs.append(e.getMessage());
 		}
 
-		if ( platformResponse == null || platformResponse.lti_tool_configuration == null) {
+		if ( platformResponse == null || platformResponse.client_id == null || platformResponse.lti_tool_configuration == null) {
 			tenant.setStatus("Error parsing client registration "+registration_endpoint);
 			tenant.setDebugLog(dbs.toString());
 			log.error(dbs.toString());
@@ -931,18 +956,28 @@ public class ProviderServlet extends HttpServlet {
 		tenant.setOidcToken(openIDConfig.token_endpoint);
 		tenant.setOidcKeySet(openIDConfig.jwks_uri);
 		tenant.setOidcRegistrationEndpoint(openIDConfig.registration_endpoint);
+
+		tenant.setClientId(platformResponse.client_id);
 		if ( ! isEmpty(deployment_id) ) {
 			tenant.setDeploymentId(deployment_id);
 			tenant.setStatus("Registration "+tenant_guid+" complete with deployment_id "+deployment_id);
 		} else {
 			tenant.setStatus("Registration "+tenant_guid+" finished, but without deployment_id");
 		}
-
 		tenant.setDebugLog(dbs.toString());
+
 		tenantRepository.save(tenant);
 		log.info(tenant.getStatus());
 
-		BasicLTIUtil.sendHTMLPage(response, "<pre>\n"+body+"\n</pre>\n");
+
+
+		out.println("<p><strong>");
+		out.println(tenant.getStatus());
+		out.println("</strong></p>");
+		out.println("<p><button onclick=\"(window.opener || window.parent).postMessage({subject:'org.imsglobal.lti.close'}, '*')\">");
+		out.println("Continue Registration in the LMS");
+		out.println("</button></p>\n<hr/>\n");
+		out.println(togglePre("Debug log", dbs.toString()));
 	}
 
 	protected void handleRepost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -1547,6 +1582,35 @@ public class ProviderServlet extends HttpServlet {
 				}
 			}, "org.sakaiproject.plus.ProviderServlet.MembershipsSync")).start();
 
+	}
+
+	private String htmlEscape(String text)
+	{
+		return StringEscapeUtils.escapeHtml4(text);
+	}
+
+	// See also tsugi/lib/src/UI/Output.php
+	private String togglePre(String title, String text)
+	{
+		String divId = (title+text).hashCode()+"";
+		StringBuffer r = new StringBuffer();
+		r.append("<p><strong>");
+		r.append(htmlEscape(title));
+		r.append(" (");
+		r.append(text.length()+"");
+		r.append(") characters ");
+		r.append("<a href=\"#\" onclick=\"var elem=document.getElementById('");
+		r.append(divId);
+		r.append("');if(elem.style.display=='block'){elem.style.display='none';}else{elem.style.display='block';}\" ");
+		r.append(">");
+		r.append("Hide/Show");
+		r.append("</a></strong></p>\n");
+		r.append("<pre style=\"display:none; border: solid 1px\" id=\"");
+		r.append(divId);
+		r.append("\">");
+		r.append(htmlEscape(text));
+		r.append("\n</pre>\n");
+		return r.toString();
 	}
 
 // vim: tabstop=4 noet

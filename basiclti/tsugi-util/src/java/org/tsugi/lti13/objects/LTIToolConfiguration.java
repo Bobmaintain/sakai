@@ -50,7 +50,7 @@ public class LTIToolConfiguration extends org.tsugi.jackson.objects.JacksonBase 
 
 	/*
 	 * In the case where a platform is combining registration and deployment of a tool, the platform may pass the
-	 * LTI deployment_id associated with this client registration's deployment.
+	 * LTI deployment_id associated with this client registration's deployment.  Response only.
 	 */
 	// "deployment_id": "42",
 	@JsonProperty("deployment_id")
