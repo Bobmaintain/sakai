@@ -117,6 +117,8 @@ import org.springframework.cache.CacheManager;
 import org.tsugi.lti13.objects.LaunchJWT;
 import org.tsugi.lti13.objects.OpenIDProviderConfiguration;
 import org.tsugi.lti13.objects.OpenIDClientRegistration;
+import org.tsugi.lti13.objects.LTIToolConfiguration;
+import org.tsugi.lti13.objects.LTILaunchMessage;
 import org.sakaiproject.lti13.util.SakaiLaunchJWT;
 import org.tsugi.lti13.LTI13Util;
 import org.tsugi.lti13.LTI13ConstantsUtil;
@@ -844,9 +846,26 @@ System.out.println("body="+body);
 					LTI13ConstantsUtil.SCOPE_RESULT_READONLY + " " +
 					LTI13ConstantsUtil.SCOPE_NAMES_AND_ROLES;
 
+		// TODO: Issue #53 - Define placements...
+		// TODO: Issue #59 - Message parsing order - Sakai takes first, Moodle takes last
+		// TODO: ContextPlacementLaunch
+
 		// Domain is in the tool
 		// claims are in the tool
 		// Description is in the tool
+		LTIToolConfiguration ltitc = new LTIToolConfiguration();
+		ltitc.addCommonClaims();
+		ltitc.domain = domain;
+		ltitc.description = description;
+		// TODO: ltitc.target_link_uri = description;
+		// TODO: custom
+
+		LTILaunchMessage lm = new LTILaunchMessage();
+		lm.type = LaunchJWT.MESSAGE_TYPE_LAUNCH;
+		lm.label = "Label goes here";  // TODO: Get moar clever here.
+		ltitc.messages.add(lm);
+
+		reg.lti_tool_configuration = ltitc;
 
 		String regs = reg.prettyPrintLog();
 

@@ -94,7 +94,7 @@ import org.tsugi.ags2.objects.Score;
 import org.tsugi.lti13.objects.LaunchJWT;
 import org.tsugi.lti13.objects.OpenIDProviderConfiguration;
 import org.tsugi.lti13.objects.LTIPlatformConfiguration;
-import org.tsugi.lti13.objects.LTIPlatformMessage;
+import org.tsugi.lti13.objects.LTILaunchMessage;
 
 import org.sakaiproject.lti13.util.SakaiAccessToken;
 import org.sakaiproject.lti13.util.SakaiLineItem;
@@ -716,11 +716,11 @@ public class LTI13Servlet extends HttpServlet {
 		lpc.product_family_code = "sakailms.org";
 		lpc.version = sakaiVersion;
 
-		LTIPlatformMessage mp = new LTIPlatformMessage();
+		LTILaunchMessage mp = new LTILaunchMessage();
 		mp.type = LaunchJWT.MESSAGE_TYPE_LAUNCH;
 		lpc.messages_supported.add(mp);
 
-		mp = new LTIPlatformMessage();
+		mp = new LTILaunchMessage();
 		mp.type = LaunchJWT.MESSAGE_TYPE_DEEP_LINK;
 		lpc.messages_supported.add(mp);
 

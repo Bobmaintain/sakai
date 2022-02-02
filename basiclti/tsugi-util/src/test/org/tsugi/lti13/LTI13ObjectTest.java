@@ -14,7 +14,7 @@ import org.tsugi.lti13.objects.Endpoint;
 import org.tsugi.lti13.objects.LTI11Transition;
 import org.tsugi.lti13.objects.OpenIDProviderConfiguration;
 import org.tsugi.lti13.objects.LTIPlatformConfiguration;
-import org.tsugi.lti13.objects.LTIPlatformMessage;
+import org.tsugi.lti13.objects.LTILaunchMessage;
 import org.tsugi.lti13.objects.OpenIDClientRegistration;
 import org.tsugi.lti13.objects.LTIToolConfiguration;
 
@@ -151,10 +151,10 @@ public class LTI13ObjectTest {
 	@Test
 	public void testTwo() {
 		LTIPlatformConfiguration lpc = new LTIPlatformConfiguration();
-		LTIPlatformMessage mp = new LTIPlatformMessage();
+		LTILaunchMessage mp = new LTILaunchMessage();
 		mp.type = LaunchJWT.MESSAGE_TYPE_LAUNCH;
 		lpc.messages_supported.add(mp);
-        mp = new LTIPlatformMessage();
+        mp = new LTILaunchMessage();
         mp.type = LaunchJWT.MESSAGE_TYPE_DEEP_LINK;
         lpc.messages_supported.add(mp);
 		lpc.variables.add(LTICustomVars.USER_ID);

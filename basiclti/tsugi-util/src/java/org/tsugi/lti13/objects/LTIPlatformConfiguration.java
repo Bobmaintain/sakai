@@ -29,7 +29,7 @@ public class LTIPlatformConfiguration extends org.tsugi.jackson.objects.JacksonB
 
 	// An array of all supported LTI message types.
 	@JsonProperty("messages_supported")
-	public List<LTIPlatformMessage> messages_supported = new ArrayList<LTIPlatformMessage>();
+	public List<LTILaunchMessage> messages_supported = new ArrayList<LTILaunchMessage>();
 
 	// An array of all variables supported for use as substitution parameters (optional)
 	@JsonProperty("variables")

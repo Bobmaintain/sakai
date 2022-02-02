@@ -8,6 +8,9 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 
+// This is used to populate both "messages_supported" and "messages"
+// For messages supported - we only define type
+
 /*
      "https://purl.imsglobal.org/spec/lti-platform-configuration ": {
         "product_family_code": "ExampleLMS",
@@ -25,9 +28,9 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 				"placements": ["resourceLink", ... (TBD)]
             }
         ]
-
  */
-public class LTIPlatformMessage extends org.tsugi.jackson.objects.JacksonBase {
+
+public class LTILaunchMessage extends org.tsugi.jackson.objects.JacksonBase {
 	// Defined values in org.tsugi.lti13.objects.LaunchJWT.MESSAGE_TYPE_LAUNCH;
 	@JsonProperty("type")
 	public String type;
@@ -35,6 +38,7 @@ public class LTIPlatformMessage extends org.tsugi.jackson.objects.JacksonBase {
 	public String target_link_uri;
 	@JsonProperty("label")
 	public String label;
+
 	// Array of placements indicating where the platform support this link type to be added when the tool is made available.
 	// TODO: Define the constants that belong here
 	@JsonProperty("placements")
