@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
         ]
     },
  */
-public class BasicOutcome {
+public class BasicOutcome extends org.tsugi.jackson.objects.JacksonBase {
 
 	@JsonProperty("lis_result_sourcedid")
 	public String lis_result_sourcedid;

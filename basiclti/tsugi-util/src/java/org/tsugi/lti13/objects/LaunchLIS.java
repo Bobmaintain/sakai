@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
       "course_section_sourcedid": "example.edu:SI182-001-F16"
     }
  */
-public class LaunchLIS {
+public class LaunchLIS extends org.tsugi.jackson.objects.JacksonBase {
 
 	@JsonProperty("person_sourcedid")
 	public String person_sourcedid;

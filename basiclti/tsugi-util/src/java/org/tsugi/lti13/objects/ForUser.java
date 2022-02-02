@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
  * roles: Roles in the context as defined in LTI 1.3 Core specifications.
  */
 
-public class ForUser {
+public class ForUser extends org.tsugi.jackson.objects.JacksonBase {
 	// Required
 	@JsonProperty("user_id")
 	public String user_id;

@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
         "return_url": "https:\/\/lti-ri.imsglobal.org\/platforms\/7\/returns"
     },
  */
-public class LaunchPresentation {
+public class LaunchPresentation extends org.tsugi.jackson.objects.JacksonBase {
 
 	@JsonProperty("document_target")
 	public String document_target = "iframe";

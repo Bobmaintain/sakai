@@ -28,7 +28,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 	}
 
 */
-public class LTI11Transition {
+public class LTI11Transition extends org.tsugi.jackson.objects.JacksonBase {
 	@JsonProperty("user_id")
 	public String user_id;
 	@JsonProperty("oauth_consumer_key")

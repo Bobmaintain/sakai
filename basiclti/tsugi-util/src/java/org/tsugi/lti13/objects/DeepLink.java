@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
   }
  */
 
-public class DeepLink {
+public class DeepLink extends org.tsugi.jackson.objects.JacksonBase {
 
 	// TODO: What do these mean?
 	public static final String ACCEPT_TYPE_LINK = "link";

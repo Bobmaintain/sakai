@@ -30,7 +30,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
     //     ]
     // }
  */
-public class LTIToolConfiguration {
+public class LTIToolConfiguration extends org.tsugi.jackson.objects.JacksonBase {
 
     // "domain": "client.example.org",
 	@JsonProperty("domain")

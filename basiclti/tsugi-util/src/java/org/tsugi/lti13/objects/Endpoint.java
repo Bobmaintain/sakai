@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
         "lineitem": "https:\/\/lti-ri.imsglobal.org\/platforms\/7\/contexts\/6\/line_items\/9"
     },
  */
-public class Endpoint {
+public class Endpoint extends org.tsugi.jackson.objects.JacksonBase {
 
 	@JsonProperty("scope")
 	public List<String> scope = new ArrayList<String>();

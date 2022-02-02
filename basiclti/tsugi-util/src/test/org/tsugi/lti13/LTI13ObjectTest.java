@@ -12,9 +12,13 @@ import org.tsugi.lti13.objects.LaunchLIS;
 import org.tsugi.lti13.objects.BasicOutcome;
 import org.tsugi.lti13.objects.Endpoint;
 import org.tsugi.lti13.objects.LTI11Transition;
-import org.tsugi.lti13.objects.PlatformConfiguration;
+import org.tsugi.lti13.objects.OpenIDProviderConfiguration;
 import org.tsugi.lti13.objects.LTIPlatformConfiguration;
 import org.tsugi.lti13.objects.LTIPlatformMessage;
+import org.tsugi.lti13.objects.OpenIDClientRegistration;
+import org.tsugi.lti13.objects.LTIToolConfiguration;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.tsugi.lti13.LTICustomVars;
 
@@ -156,7 +160,7 @@ public class LTI13ObjectTest {
 		lpc.variables.add(LTICustomVars.USER_ID);
 		lpc.variables.add(LTICustomVars.PERSON_EMAIL_PRIMARY);
 
-		PlatformConfiguration pc = new PlatformConfiguration();
+		OpenIDProviderConfiguration pc = new OpenIDProviderConfiguration();
 		pc.lti_platform_configuration = lpc;
 
 		String pcs = JacksonUtil.toString(pc);
@@ -222,4 +226,22 @@ public class LTI13ObjectTest {
 		assertEquals(expected2,ljs);
 	}
 
+	@Test
+	public void testfour() throws com.fasterxml.jackson.core.JsonProcessingException {
+		LTIToolConfiguration ltc = new LTIToolConfiguration();
+		OpenIDClientRegistration cr = new OpenIDClientRegistration();
+		cr.lti_tool_configuration = ltc;
+
+		String crs = JacksonUtil.toString(cr);
+
+		// Lets test string / array equivalence!
+		String first = "{ \"contacts\": \"a@b.com\" }";
+		String second = "{ \"contacts\": [ \"a@b.com\"] }";
+
+        ObjectMapper mapper = JacksonUtil.getLaxObjectMapper();
+        OpenIDClientRegistration ocr1 = mapper.readValue(first, OpenIDClientRegistration.class);
+        OpenIDClientRegistration ocr2 = mapper.readValue(second, OpenIDClientRegistration.class);
+		assertTrue(ocr1.prettyPrintLog().contains("a@b.com"));
+		assertEquals(ocr1.prettyPrintLog(), ocr2.prettyPrintLog());
+	}
 }

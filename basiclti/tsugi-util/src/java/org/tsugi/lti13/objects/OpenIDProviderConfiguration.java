@@ -10,7 +10,7 @@ import org.tsugi.lti13.LTI13ConstantsUtil;
 
 @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 
-// https://www.imsglobal.org/spec/lti-dr/v1p0
+// https://www.imsglobal.org/spec/lti-dr/v1p0#platform-configuration
 // https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationResponse
 /*
 {
@@ -42,7 +42,7 @@ import org.tsugi.lti13.LTI13ConstantsUtil;
 }
  */
 
-public class PlatformConfiguration {
+public class OpenIDProviderConfiguration extends org.tsugi.jackson.objects.JacksonBase {
 
 	// Platform's issuer value. As per IMS Security Framework and LTI Specification, the Issuer Identifier is 
 	// a case-sensitive URL, using the HTTPS scheme, that contains scheme, host, and optionally, port number,
@@ -104,7 +104,7 @@ public class PlatformConfiguration {
 	public LTIPlatformConfiguration lti_platform_configuration;
 
    // Constructor
-    public PlatformConfiguration() {
+    public OpenIDProviderConfiguration() {
 		this.token_endpoint_auth_methods_supported.add("private_key_jwt");
 		this.token_endpoint_auth_signing_alg_values_supported.add("RS256");
 		this.scopes_supported.add("openid");

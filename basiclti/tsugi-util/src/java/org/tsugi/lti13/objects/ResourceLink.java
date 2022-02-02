@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
         "description": ""
     },
  */
-public class ResourceLink {
+public class ResourceLink extends org.tsugi.jackson.objects.JacksonBase {
 
 	@JsonProperty("id")
 	public String id;

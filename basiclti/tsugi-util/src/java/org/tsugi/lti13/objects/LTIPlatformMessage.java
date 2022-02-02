@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
         ]
 
  */
-public class LTIPlatformMessage {
+public class LTIPlatformMessage extends org.tsugi.jackson.objects.JacksonBase {
 	// Defined values in org.tsugi.lti13.objects.LaunchJWT.MESSAGE_TYPE_LAUNCH;
 	@JsonProperty("type")
 	public String type;

@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
         "variables": ["CourseSection.timeFrame.end", "CourseSection.timeFrame.begin", "Context.id.history", "ResourceLink.id.history"]
     }
  */
-public class LTIPlatformConfiguration {
+public class LTIPlatformConfiguration extends org.tsugi.jackson.objects.JacksonBase {
 
 	// Product identifier for the platform. 
 	@JsonProperty("product_family_code")

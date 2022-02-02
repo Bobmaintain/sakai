@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 		"service_versions" : ["2.0"]
 	}
  */
-public class NamesAndRoles {
+public class NamesAndRoles extends org.tsugi.jackson.objects.JacksonBase {
 
 	// TODO: What do these mean?
 	public static String SERVICE_VERSION_LTI13 = "2.0";  // Like WTF?  But tis true.

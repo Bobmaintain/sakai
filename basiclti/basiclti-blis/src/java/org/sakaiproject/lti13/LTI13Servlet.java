@@ -92,7 +92,7 @@ import org.tsugi.lti13.objects.LaunchLIS;
 import org.tsugi.ags2.objects.Result;
 import org.tsugi.ags2.objects.Score;
 import org.tsugi.lti13.objects.LaunchJWT;
-import org.tsugi.lti13.objects.PlatformConfiguration;
+import org.tsugi.lti13.objects.OpenIDProviderConfiguration;
 import org.tsugi.lti13.objects.LTIPlatformConfiguration;
 import org.tsugi.lti13.objects.LTIPlatformMessage;
 
@@ -727,7 +727,7 @@ public class LTI13Servlet extends HttpServlet {
 		lpc.variables.add(LTICustomVars.USER_ID);
 		lpc.variables.add(LTICustomVars.PERSON_EMAIL_PRIMARY);
 
-		PlatformConfiguration pc = new PlatformConfiguration();
+		OpenIDProviderConfiguration pc = new OpenIDProviderConfiguration();
 		pc.issuer = issuerURL;
 		pc.authorization_endpoint = authOIDC;
 		pc.token_endpoint = tokenUrl;

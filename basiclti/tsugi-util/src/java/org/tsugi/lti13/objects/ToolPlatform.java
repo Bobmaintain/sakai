@@ -15,7 +15,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
         "version": "1.0"
     },
  */
-public class ToolPlatform {
+public class ToolPlatform extends org.tsugi.jackson.objects.JacksonBase {
 
 	@JsonProperty("name")
 	public String name;

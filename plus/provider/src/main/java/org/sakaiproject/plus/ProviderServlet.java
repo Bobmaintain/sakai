@@ -115,8 +115,8 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 
 import org.tsugi.lti13.objects.LaunchJWT;
+import org.tsugi.lti13.objects.OpenIDProviderConfiguration;
 import org.sakaiproject.lti13.util.SakaiLaunchJWT;
-import org.tsugi.lti13.objects.PlatformConfiguration;
 import org.tsugi.lti13.LTI13Util;
 import org.apache.commons.lang3.StringUtils;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
@@ -753,57 +753,44 @@ System.out.println("body="+body);
             log.error("Error retrieving openid_configuration at {}", openid_configuration);
             log.error(dbs.toString());
 			doError(request, response, "plus.dynamic.badurl", openid_configuration, e);
+            tenant.setStatus("Error retrieving openid_configuration at "+openid_configuration);
+			dbs.append("Exception\n");
+			dbs.append(e.getMessage());
+            tenant.setDebugLog(dbs.toString());
+            tenantRepository.save(tenant);
             return;
 		}
 
         // Create and configure an ObjectMapper instance
         ObjectMapper mapper = JacksonUtil.getLaxObjectMapper();
-        PlatformConfiguration platform;
+        OpenIDProviderConfiguration platformConfig;
         try {
-            platform = mapper.readValue(body, PlatformConfiguration.class);
+            platformConfig = mapper.readValue(body, OpenIDProviderConfiguration.class);
 
-            if ( platform != null ) {
-System.out.println("platform="+platform);
-
-				/*
-                String retval = returnedItem.id;
-System.out.println("returning lineitem id="+retval);
-                if ( isNotEmpty(retval) ) {
-                    dbli.setStatus("created lineitem id="+retval);
-                    dbli.setSuccess(Boolean.TRUE);
-                    if ( verbose(tenant) ) dbli.setDebugLog(dbs.toString());
-                    lineItemRepository.save(dbli);
-                    return retval;
-                }
-                dbli.setStatus("did not find returned lineitem id");
-                dbli.setDebugLog(dbs.toString());
-                lineItemRepository.save(dbli);
-				*/
-            }
+            if ( platformConfig == null ) {
+				doError(request, response, "plus.dynamic.parse", openid_configuration, null);
+			}
         } catch ( Exception e ) {
-            log.error("Error parsing openid_configuration at {}", openid_configuration);
-            log.error(dbs.toString());
+			platformConfig = null;
 			doError(request, response, "plus.dynamic.parse", openid_configuration, e);
-/*
-            dbli.setStatus("Error parsing lineItem at "+lineItemsUrl);
-            dbli.setDebugLog(dbs.toString());
-            lineItemRepository.save(dbli);
-*/
-			return;
+			dbs.append("Exception\n");
+			dbs.append(e.getMessage());
         }
 
-/*
-  $issuer = $platform_configuration->issuer;
-  $authorization_endpoint = $platform_configuration->authorization_endpoint;
-  $token_endpoint = $platform_configuration->token_endpoint;
-  $jwks_uri = $platform_configuration->jwks_uri;
-  $registration_endpoint = $platform_configuration->registration_endpoint;
-*/
-		String issuer = platform.issuer;
-		String authorization_endpoint = platform.authorization_endpoint;
-		String token_endpoint = platform.token_endpoint;
-		String jwks_uri = platform.jwks_uri;
-		String registration_endpoint = platform.registration_endpoint;
+		if ( platformConfig == null ) {
+            log.error("Error parsing openid_configuration at {}", openid_configuration);
+            log.error(dbs.toString());
+            tenant.setStatus("Error parsing openid_configuration at "+openid_configuration);
+            tenant.setDebugLog(dbs.toString());
+            tenantRepository.save(tenant);
+			return;
+		}
+
+		String issuer = platformConfig.issuer;
+		String authorization_endpoint = platformConfig.authorization_endpoint;
+		String token_endpoint = platformConfig.token_endpoint;
+		String jwks_uri = platformConfig.jwks_uri;
+		String registration_endpoint = platformConfig.registration_endpoint;
 
 		// Check for required items
 		String missing = "";
