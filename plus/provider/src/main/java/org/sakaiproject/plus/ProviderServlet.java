@@ -243,6 +243,8 @@ public class ProviderServlet extends HttpServlet {
 		log.info("{}: {}", rb.getString(s), message);
 		PrintWriter out = response.getWriter();
 		out.println(rb.getString(s));
+		out.println(htmlEscape(message));
+		if ( e != null ) out.println(e.getMessage());
 	}
 
 	// TODO: Make this a *lot* prettier and add forward to knowledge base feature :)
@@ -252,6 +254,8 @@ public class ProviderServlet extends HttpServlet {
 		}
 		log.info("{}: {}", rb.getString(s), message);
 		out.println(rb.getString(s));
+		out.println(htmlEscape(message));
+		if ( e != null ) out.println(e.getMessage());
 	}
 
 	@Override

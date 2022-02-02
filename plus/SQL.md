@@ -33,8 +33,17 @@
     UPDATE PLUS_TENANT SET
         ALLOWED_TOOLS = 'sakai.site:sakai.resources:sakai.lessonbuildertool:sakai.lessonbuildertool:sakai.gradebookng:sakai.conversations:sakai.assignment.grades:sakai.mycalendar:sakai.podcasts:sakai.poll:sakai.syllabus',
         TRUST_EMAIL = 1,
-        VERBOSE = 1
+        VERBOSE = 1,
+        DELETED = 0,
+        SUCCESS = 0
     ;
+
+    INSERT INTO PLUS_TENANT
+    (TENNANT_GUID, TITLE, ISSUER, OIDC_REGISTRATION_LOCK)
+    VALUES
+    ('123', 'Local Moodle', 'http://localhost:8888/moodle/', '42');
+
+    http://localhost:8080/plus/sakai/dynamic/123?unlock_token=42
 
     DROP TABLE PLUS_SCORE;
     DROP TABLE PLUS_LINEITEM;
@@ -50,23 +59,44 @@
     https://devportal-stage.saas.bbpd.io/api/v1/gateway/oauth2/jwttoken
     https://devportal-stage.saas.bbpd.io/api/v1/gateway/oidcauth
 
-
     mysql> describe PLUS_TENANT;
-    +---------------+---------------+------+-----+---------+-------+
-    | Field         | Type          | Null | Key | Default | Extra |
-    +---------------+---------------+------+-----+---------+-------+
-    | TENNANT_GUID  | varchar(36)   | NO   | PRI | NULL    |       |
-    | CACHE_KEYSET  | varchar(4000) | YES  |     | NULL    |       |
-    | CLIENT_ID     | varchar(200)  | YES  |     | NULL    |       |
-    | DEPLOYMENT_ID | varchar(200)  | YES  |     | NULL    |       |
-    | DESCRIPTION   | varchar(4000) | YES  |     | NULL    |       |
-    | ISSUER        | varchar(200)  | YES  | MUL | NULL    |       |
-    | OIDC_AUDIENCE | varchar(200)  | YES  |     | NULL    |       |
-    | OIDC_AUTH     | varchar(500)  | YES  |     | NULL    |       |
-    | OIDC_KEYSET   | varchar(500)  | YES  |     | NULL    |       |
-    | OIDC_TOKEN    | varchar(500)  | YES  |     | NULL    |       |
-    | TITLE         | varchar(500)  | NO   |     | NULL    |       |
-    | TRUST_EMAIL   | bit(1)        | YES  |     | NULL    |       |
-    +---------------+---------------+------+-----+---------+-------+
-    12 rows in set (0.01 sec)
+    +----------------------------+---------------+------+-----+---------+-------+
+    | Field                      | Type          | Null | Key | Default | Extra |
+    +----------------------------+---------------+------+-----+---------+-------+
+    | TENNANT_GUID               | varchar(36)   | NO   | PRI | NULL    |       |
+    | CACHE_KEYSET               | varchar(4000) | YES  |     | NULL    |       |
+    | CLIENT_ID                  | varchar(200)  | YES  |     | NULL    |       |
+    | DEPLOYMENT_ID              | varchar(200)  | YES  |     | NULL    |       |
+    | DESCRIPTION                | varchar(4000) | YES  |     | NULL    |       |
+    | ISSUER                     | varchar(200)  | YES  | MUL | NULL    |       |
+    | OIDC_AUDIENCE              | varchar(200)  | YES  |     | NULL    |       |
+    | OIDC_AUTH                  | varchar(500)  | YES  |     | NULL    |       |
+    | OIDC_KEYSET                | varchar(500)  | YES  |     | NULL    |       |
+    | OIDC_TOKEN                 | varchar(500)  | YES  |     | NULL    |       |
+    | TITLE                      | varchar(500)  | NO   |     | NULL    |       |
+    | TRUST_EMAIL                | bit(1)        | YES  |     | NULL    |       |
+    | ALLOWED_TOOLS              | varchar(500)  | YES  |     | NULL    |       |
+    | TIMEZONE                   | varchar(100)  | YES  |     | NULL    |       |
+    | VERBOSE                    | bit(1)        | YES  |     | NULL    |       |
+    | CREATED_AT                 | datetime      | YES  |     | NULL    |       |
+    | DEBUG_LOG                  | longtext      | YES  |     | NULL    |       |
+    | DELETED                    | bit(1)        | YES  |     | NULL    |       |
+    | DELETED_AT                 | datetime      | YES  |     | NULL    |       |
+    | DELETOR                    | varchar(99)   | YES  |     | NULL    |       |
+    | JSON                       | longtext      | YES  |     | NULL    |       |
+    | LOGIN_AT                   | datetime      | YES  |     | NULL    |       |
+    | LOGIN_COUNT                | int(11)       | YES  |     | NULL    |       |
+    | LOGIN_IP                   | varchar(64)   | YES  |     | NULL    |       |
+    | LOGIN_USER                 | varchar(99)   | YES  |     | NULL    |       |
+    | MODIFIED_AT                | datetime      | YES  |     | NULL    |       |
+    | MODIFIER                   | varchar(99)   | YES  |     | NULL    |       |
+    | SENT_AT                    | datetime      | YES  |     | NULL    |       |
+    | STATUS                     | varchar(200)  | YES  |     | NULL    |       |
+    | SUCCESS                    | bit(1)        | YES  |     | NULL    |       |
+    | UPDATED_AT                 | datetime      | YES  |     | NULL    |       |
+    | OIDC_REGISTRATION          | longtext      | YES  |     | NULL    |       |
+    | OIDC_REGISTRATION_ENDPOINT | varchar(500)  | YES  |     | NULL    |       |
+    | OIDC_REGISTRATION_LOCK     | varchar(200)  | YES  |     | NULL    |       |
+    +----------------------------+---------------+------+-----+---------+-------+
+    34 rows in set (0.01 sec)
 
