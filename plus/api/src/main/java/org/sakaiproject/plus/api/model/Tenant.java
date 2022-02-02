@@ -100,6 +100,10 @@ public class Tenant extends BaseLTI implements PersistableEntity<String> {
 	@Column(name = "CACHE_KEYSET", nullable = true)
 	private String cacheKeySet;
 
+	// Need to unlock Dynamic registration
+	@Column(name = "OIDC_REGISTRATION_LOCK", length = LENGTH_EXTERNAL_ID, nullable = true)
+	private String oidcRegistrationLock;
+
 	@Column(name = "OIDC_REGISTRATION_ENDPOINT", length = LENGTH_URI, nullable = true)
 	private String oidcRegistrationEndpoint;
 

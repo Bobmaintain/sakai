@@ -241,18 +241,6 @@ public class ProviderServlet extends HttpServlet {
 			log.error(e.getLocalizedMessage(), e);
 		}
 		log.info("{}: {}", rb.getString(s), message);
-		String return_url = request.getParameter(BasicLTIConstants.LAUNCH_PRESENTATION_RETURN_URL);
-		if (return_url != null && return_url.length() > 1) {
-			if (return_url.indexOf('?') > 1) {
-				return_url += "&lti_msg=" + URLEncoder.encode(rb.getString(s), "UTF-8");
-			} else {
-				return_url += "?lti_msg=" + URLEncoder.encode(rb.getString(s), "UTF-8");
-			}
-			// Avoid Response Splitting
-			return_url = return_url.replaceAll("[\r\n]","");
-			response.sendRedirect(return_url);
-			return;
-		}
 		PrintWriter out = response.getWriter();
 		out.println(rb.getString(s));
 	}
@@ -492,7 +480,7 @@ public class ProviderServlet extends HttpServlet {
 		if (! deploymentId.equals(tenant.getDeploymentId()) ) missing = missing + "deploymentId mismatch " + deploymentId + "/" + tenant.getDeploymentId();
 
 		if ( ! missing.equals("") ) {
-		   doError(request, response, "plus.plusservice.tenant.check", missing, null);
+			doError(request, response, "plus.plusservice.tenant.check", missing, null);
 		}
 
 		// Store this all in payload for future use and to share some of the
@@ -741,7 +729,18 @@ public class ProviderServlet extends HttpServlet {
 
 		String openid_configuration = request.getParameter("openid_configuration");
 		String registration_token = request.getParameter("registration_token");
-		log.info("openid_configuration={} registration_token={} tenant_guid={}", openid_configuration, registration_token, tenant_guid);
+		String unlock_token_request = request.getParameter("unlock_token");
+		log.info("openid_configuration={} registration_token={} unlock_token={} tenant_guid={}", openid_configuration, registration_token, unlock_token_request, tenant_guid);
+
+		String missing = "";
+		if (isEmpty(openid_configuration) ) missing = missing + " openid_configuration";
+		if (isEmpty(registration_token) ) missing = missing + " registration_token";
+		if (isEmpty(unlock_token_request) ) missing = missing + " unlock_token";
+
+		if ( ! missing.equals("") ) {
+			doError(request, response, "plus.dynamic.request.missing", missing, null);
+			return;
+		}
 
 		Optional<Tenant> optTenant = tenantRepository.findById(tenant_guid);
 		Tenant tenant = null;
@@ -754,15 +753,24 @@ public class ProviderServlet extends HttpServlet {
 			return;
 		}
 
-		PrintWriter out = response.getWriter();
-		out.println("<p><strong>Starting IMS LTI Dynamic Registration Process for tenant ");
-		out.println(htmlEscape(tenant_guid));
-		out.println(" (<a href=\"https://www.imsglobal.org/spec/lti-dr/v1p0\" target=\"_blank\">specification</a>)");
-		out.println("</strong></p>\n");
+		if ( ! unlock_token_request.equals(tenant.getOidcRegistrationLock()) ) {
+			doError(request, response, "plus.dynamic.unlock.mismatch", tenant_guid, null);
+			return;
+		}
 
-		out.println("<p><strong>OpenID Configuration URL:</strong><br/>");
-		out.println(htmlEscape(openid_configuration));
-		out.println("</p>\n");
+		PrintWriter out = response.getWriter();
+		out.print("<p><strong>");
+		out.println(rb.getString("plus.dynamic.starting"));
+		out.println(htmlEscape(tenant_guid));
+		out.print(" (<a href=\"https://www.imsglobal.org/spec/lti-dr/v1p0\" target=\"_blank\">");
+		out.print(rb.getString("plus.dynamic.specification"));
+		out.println(")</a></strong></p>");
+
+		out.print("<p><strong>");
+		out.print(rb.getString("plus.dynamic.config.url"));
+		out.println("</strong><br/>");
+		out.print(htmlEscape(openid_configuration));
+		out.println("</p>");
 
 		String body;
 		StringBuffer dbs = new StringBuffer();
@@ -781,7 +789,7 @@ public class ProviderServlet extends HttpServlet {
 			return;
 		}
 
-		out.println(togglePre("Retrieved OpenID Configuration", body));
+		out.println(togglePre(rb.getString("plus.dynamic.retrieved.openid"), body));
 
 		// Create and configure an ObjectMapper instance
 		ObjectMapper mapper = JacksonUtil.getLaxObjectMapper();
@@ -816,7 +824,7 @@ public class ProviderServlet extends HttpServlet {
 		String registration_endpoint = openIDConfig.registration_endpoint;
 
 		// Check for required items
-		String missing = "";
+		missing = "";
 		if (isEmpty(issuer) ) missing = missing + " issuer";
 		if (isEmpty(authorization_endpoint) ) missing = missing + " authorization_endpoint";
 		if (isEmpty(token_endpoint) ) missing = missing + " token_endpoint";
@@ -824,8 +832,14 @@ public class ProviderServlet extends HttpServlet {
 		if (isEmpty(registration_endpoint) ) missing = missing + " registration_endpoint";
 
 		if ( ! missing.equals("") ) {
-		   addError(out, "plus.dynamic.missing", missing, null);
-		   return;
+			addError(out, "plus.dynamic.missing", missing, null);
+			return;
+		}
+
+		if ( ! issuer.equals(tenant.getIssuer()) ) {
+			log.error("Retrieved issuer {} does not match stored issuer {}", issuer, tenant.getIssuer());
+			addError(out, "plus.dynamic.issuer.mismatch", issuer+" / "+tenant.getIssuer(), null);
+			return;
 		}
 
 		OpenIDClientRegistration reg = new OpenIDClientRegistration();
@@ -852,15 +866,15 @@ public class ProviderServlet extends HttpServlet {
 			description = ServerConfigurationService.getString("plus.default.description", rb.getString("plus.default.description"));
 		}
 
-		// TODO: YADA
+		// Lets full up the registration request
 		reg.client_name = title;
 		reg.client_uri = serverUrl;
 		reg.initiate_login_uri = serverUrl + "/plus/sakai/oidc_login/" + tenant_guid;
 		reg.redirect_uris.add(serverUrl + "/plus/sakai/oidc_launch");
 		reg.jwks_uri = serverUrl + "/imsblis/lti13/keyset";
-		reg.policy_uri =  ServerConfigurationService.getString("plus.default.policy.uri", null);
-		reg.tos_uri =  ServerConfigurationService.getString("plus.default.tos.uri", null);
-		reg.logo_uri =  ServerConfigurationService.getString("plus.default.logo.uri", null);
+		reg.policy_uri = ServerConfigurationService.getString("plus.default.policy.uri", null);
+		reg.tos_uri = ServerConfigurationService.getString("plus.default.tos.uri", null);
+		reg.logo_uri = ServerConfigurationService.getString("plus.default.logo.uri", null);
 		reg.scope = LTI13ConstantsUtil.SCOPE_LINEITEM + " " +
 					LTI13ConstantsUtil.SCOPE_LINEITEM_READONLY + " " +
 					LTI13ConstantsUtil.SCOPE_SCORE + " " +
@@ -871,9 +885,6 @@ public class ProviderServlet extends HttpServlet {
 		// TODO: Issue #59 - Message parsing order - Sakai takes first, Moodle takes last
 		// TODO: ContextPlacementLaunch
 
-		// Domain is in the tool
-		// claims are in the tool
-		// Description is in the tool
 		LTIToolConfiguration ltitc = new LTIToolConfiguration();
 		ltitc.addCommonClaims();
 		ltitc.domain = domain;
@@ -898,7 +909,7 @@ public class ProviderServlet extends HttpServlet {
 		headers.put("Content-type", "application/json");
 
 		String regs = reg.prettyPrintLog();
-		out.println(togglePre("Sending OpenID Client Registration Request", regs));
+		out.println(togglePre(rb.getString("plus.dynamic.client.request"), regs));
 		body = null;
 		try {
 			HttpResponse<String> registrationResponse = HttpClientUtil.sendPost(registration_endpoint, regs, headers, dbs);
@@ -912,7 +923,7 @@ public class ProviderServlet extends HttpServlet {
 			addError(out, "plus.dynamic.registration.post", null, e);
 		}
 
-		out.println(togglePre("Received OpenID Client Registration Response", body));
+		out.println(togglePre(rb.getString("plus.dynamic.client.response"), body));
 
 		// Remember the registration
 		tenant.setOidcRegistration(body);
@@ -975,9 +986,9 @@ public class ProviderServlet extends HttpServlet {
 		out.println(tenant.getStatus());
 		out.println("</strong></p>");
 		out.println("<p><button onclick=\"(window.opener || window.parent).postMessage({subject:'org.imsglobal.lti.close'}, '*')\">");
-		out.println("Continue Registration in the LMS");
+		out.print(rb.getString("plus.dynamic.continue"));
 		out.println("</button></p>\n<hr/>\n");
-		out.println(togglePre("Debug log", dbs.toString()));
+		out.println(togglePre(rb.getString("plus.dynamic.debug"), dbs.toString()));
 	}
 
 	protected void handleRepost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -997,11 +1008,13 @@ public class ProviderServlet extends HttpServlet {
 			r.append(value);
 			r.append("\">\n");
 		}
-		r.append("<input id=\"repost_submit\" style=\"display:none;\" onclick=\"repost_click();\" type=\"submit\" name=\"POP\" value=\"Open Sakai Plus in a New Window\">\n");
+		r.append("<input id=\"repost_submit\" style=\"display:none;\" onclick=\"repost_click();\" type=\"submit\" name=\"POP\" value=\"");
+		r.append(rb.getString("plus.repost.new.window"));
+		r.append("\">\n");
 		r.append("</form>\n");
 		r.append("<div id=\"repost_done\" style=\"display: none; border: 1px; margin: 5px; padding 5px;\">\n");
 		r.append("<button type=\"button\" onclick=\"return false;\">\n");
-		r.append("This tool was successfully loaded in a new browser window. Reload the page to access the tool again.\n");
+		r.append(rb.getString("plus.repost.loaded"));
 		r.append("</button></div>\n");
 
 		r.append("<script>\n");
@@ -1598,12 +1611,13 @@ public class ProviderServlet extends HttpServlet {
 		r.append(htmlEscape(title));
 		r.append(" (");
 		r.append(text.length()+"");
-		r.append(") characters ");
-		r.append("<a href=\"#\" onclick=\"var elem=document.getElementById('");
+		r.append(") ");
+		r.append(rb.getString("plus.dynamic.characters"));
+		r.append(" <a href=\"#\" onclick=\"var elem=document.getElementById('");
 		r.append(divId);
 		r.append("');if(elem.style.display=='block'){elem.style.display='none';}else{elem.style.display='block';}\" ");
 		r.append(">");
-		r.append("Hide/Show");
+		r.append(rb.getString("plus.dynamic.hide.show"));
 		r.append("</a></strong></p>\n");
 		r.append("<pre style=\"display:none; border: solid 1px\" id=\"");
 		r.append(divId);
