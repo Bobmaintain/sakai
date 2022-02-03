@@ -82,17 +82,19 @@ import org.sakaiproject.lti.api.SiteMembershipUpdater;
 
 import org.sakaiproject.lti.api.BLTIProcessor;
 
+import org.sakaiproject.basiclti.util.SakaiKeySetUtil;
+import org.tsugi.jackson.JacksonUtil;
+import org.sakaiproject.lti13.util.SakaiLaunchJWT;
+
+import org.tsugi.lti13.objects.LaunchJWT;
+import org.tsugi.lti13.LTI13Util;
+import org.tsugi.lti13.LTI13AccessTokenUtil;
+import org.tsugi.lti13.LTI13ConstantsUtil;
+
 import org.tsugi.nrps.objects.Member;
 import org.tsugi.oauth2.objects.AccessToken;
 import org.tsugi.ags2.objects.LineItem;
 import org.tsugi.ags2.objects.Score;
-import org.tsugi.lti13.objects.LaunchJWT;
-
-import org.sakaiproject.basiclti.util.SakaiKeySetUtil;
-import org.tsugi.lti13.LTI13AccessTokenUtil;
-import org.tsugi.jackson.JacksonUtil;
-import org.sakaiproject.lti13.util.SakaiLaunchJWT;
-import org.tsugi.lti13.LTI13ConstantsUtil;
 
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -945,7 +947,7 @@ System.out.println("comment="+comment);
 		headers.put("Content-Type", Score.MIME_TYPE);
 
 		String body = score.prettyPrintLog();
-		String scoreUrl = lineItem + "/scores";
+		String scoreUrl = LTI13Util.getScoreUrlForLineItem(lineItem);
 		dbs = new StringBuffer();
 		dbs.append("Sending score\n");
 

@@ -2,6 +2,8 @@
 TODO LIST
 =========
 
+Make smarter use of cookies in the iframe Content Security Policy - Matt 
+
 Make a better template site to start with - Wilma?
 
 Move CSS from headscripts to someplace else - Shawn?
