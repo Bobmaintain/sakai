@@ -2,21 +2,21 @@
 TODO LIST
 =========
 
-Make a better template site to start with.
+Make a better template site to start with - Wilma?
 
-Move CSS from headscripts to someplace else
+Move CSS from headscripts to someplace else - Shawn?
 
 Figure out UI/UX best practice for pretty CRUD UIs - talk to Adrian / Earle
 
-Put context memberships into a thread and then into a batch job
+Put context memberships into a batch job - Sam / Matt?
 
 Put lineitem creation and score sending into database for redo on failure and add batch job
 
 Build pretty UI for errors - add forward to knowledgebase feature
 
-Make the mini / ultra portal for tool launches
+Make the mini / ultra portal for tool launches - maybe
 
-Make a single tool content item request and Canvas config
+Make a single tool content item request and Canvas config flow work
 
 THINGS TO RESEARCH
 ------------------
