@@ -30,11 +30,9 @@
 
         #parse("/vm/morpheus/includePageBody.vm")
 <script>
-// document.querySelectorAll('.Mrphs-toolTitleNav__link--directurl').forEach(function(el) {
-   // el.style.display = 'none';
-// });
 document.getElementById('sakai-maximise-button-id').style.display = 'none';
 document.getElementById('tool-direct-button-id').style.display = 'none';
+document.getElementById('sakai-close-button-id').style.display = 'block';
 </script>
 
         #parse("/vm/morpheus/includeFooter.vm")

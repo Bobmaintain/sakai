@@ -88,6 +88,7 @@ import org.sakaiproject.portal.charon.handlers.RoleSwitchOutHandler;
 import org.sakaiproject.portal.charon.handlers.RssHandler;
 import org.sakaiproject.portal.charon.handlers.SiteHandler;
 import org.sakaiproject.portal.charon.handlers.PlusHandler;
+import org.sakaiproject.portal.charon.handlers.PlusHandlerSmall;
 import org.sakaiproject.portal.charon.handlers.SiteResetHandler;
 import org.sakaiproject.portal.charon.handlers.StaticScriptsHandler;
 import org.sakaiproject.portal.charon.handlers.StaticStylesHandler;
@@ -214,6 +215,7 @@ public class SkinnableCharonPortal extends HttpServlet implements Portal
 
 	private SiteHandler siteHandler;
 	private PlusHandler plusHandler;
+	private PlusHandlerSmall plusHandlerSmall;
 
 	private String portalContext;
 
@@ -2060,8 +2062,13 @@ public class SkinnableCharonPortal extends HttpServlet implements Portal
 		siteHandler = new SiteHandler();
 		addHandler(siteHandler);
 
+		// TODO: This Does Work
 		plusHandler = new PlusHandler();
 		addHandler(plusHandler);
+
+		// TODO: Why doesn't this work?
+		// plusHandlerSmall = new PlusHandlerSmall();
+		// addHandler(plusHandlerSmall);
 
 		addHandler(new SiteResetHandler());
 

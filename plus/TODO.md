@@ -16,7 +16,7 @@ Put lineitem creation and score sending into database for redo on failure and ad
 
 Build pretty UI for errors - add forward to knowledgebase feature
 
-Make the mini / ultra portal for tool launches - maybe
+Figure out inheritance in PlusPortal 
 
 Make a single tool content item request and Canvas config flow work
 
