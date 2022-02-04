@@ -30,8 +30,9 @@
         VERBOSE = 1
     WHERE TENNANT_GUID='54321';
 
+
     UPDATE PLUS_TENANT SET
-        ALLOWED_TOOLS = 'sakai.site:sakai.resources:sakai.lessonbuildertool:sakai.lessonbuildertool:sakai.gradebookng:sakai.conversations:sakai.assignment.grades:sakai.mycalendar:sakai.podcasts:sakai.poll:sakai.syllabus',
+        ALLOWED_TOOLS = 'sakai.site:sakai.resources:sakai.lessonbuildertool:sakai.conversations:sakai.assignment.grades:sakai.mycalendar:sakai.podcasts:sakai.poll:sakai.dropbox:sakai.mailbox:sakai.chat:sakai.postem:sakai.site.roster2:sakai.samigo',
         TRUST_EMAIL = 1,
         VERBOSE = 1,
         DELETED = 0,
