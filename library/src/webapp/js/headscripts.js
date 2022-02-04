@@ -256,53 +256,16 @@ function setMainFrameHeightWithMax(id, maxHeight)
 		    MainFrameHeightTimeOut = false;
 	    }
 	    MainFrameHeightTimeOut = setTimeout( function() { setMainFrameHeightNow(id, maxHeight); }, 1000);
-    } else {
-        setupMarkupOutsideIframe(id);
     }
 }
 
 // From tsugiscripts.js
-function tsugi_window_close()
+function tsugi_window_close(message)
 {
     window.close();
     setTimeout(function(){ console.log("Attempting self.close"); self.close(); }, 1000);
     // TODO: Internationalize this
-    setTimeout(function(){ console.log("Notifying the user."); alert("_TSUGI.window_close_message"); open("about:blank", '_self').close(); }, 2000);
-}
-
-// https://stackoverflow.com/questions/6013861/how-to-insertbefore-element-in-body-tag
-function setupMarkupOutsideIframe(id)
-{
-    var classes = document.getElementsByClassName("Mrphs-portalWrapper").length;
-    if ( classes > 0 ) return;
-
-    var already = document.getElementsByClassName("Mrphs-outside-frame-div").length;
-    if ( already > 0 ) return;
-
-    let div = document.createElement("div");
-    div.classList.add('Mrphs-outside-frame-div');
-    div.clear = "both";
-
-    let button = document.createElement("button");
-    // button.onclick = function() { tsugi_window_close(); };
-    button.addEventListener("click", function() { tsugi_window_close(); });
-
-    // TODO: Internationalize this
-    button.append('Done');
-    button.classList.add('Mrphs-outside-frame-close-button');
-    // TODO: Move this into CSS
-    button.classList.add('button');
-
-    div.append(button);
-    // document.body.prepend(div)
-    document.body.insertBefore(div, document.body.firstChild);
-    document.body.classList.add('Mrphs-outside-iframe-body');
-   
-    // TODO: Move this into CSS
-    document.body.style.paddingTop = '10px'
-    document.body.style.paddingLeft = '10px'
-    document.body.style.paddingRight = '10px'
-    document.body.style.paddingBottom = '10px'
+    setTimeout(function(){ console.log("Notifying the user."); alert(message); open("about:blank", '_self').close(); }, 2000);
 }
 
 function setMainFrameHeight(id)

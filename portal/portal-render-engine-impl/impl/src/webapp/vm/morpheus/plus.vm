@@ -32,7 +32,7 @@
 <script>
 document.getElementById('sakai-maximise-button-id').style.display = 'none';
 document.getElementById('tool-direct-button-id').style.display = 'none';
-document.getElementById('sakai-close-button-id').style.display = 'block';
+if ( ! inIframe() ) document.getElementById('sakai-close-button-id').style.display = 'block';
 </script>
 
         #parse("/vm/morpheus/includeFooter.vm")

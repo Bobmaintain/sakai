@@ -140,7 +140,7 @@
 
                                     <sakai-maximise-button id="sakai-maximise-button-id" #if (${toolMaximised}) full-screen #end></sakai-maximise-button>
 
-                                    <a class="Mrphs-toolTitleNav__link Mrphs-toolTitleNav__link--close-dialog" id="sakai-close-button-id" style="display: none;" href="${tool.toolHelpActionUrl}" title="$rloader.getFormattedMessage("sit_closepage", $tool.toolRenderResult.title)" target="_blank" onclick="tsugi_window_close(); return false">
+                                    <a class="Mrphs-toolTitleNav__link Mrphs-toolTitleNav__link--close-dialog" style="display: none;" id="sakai-close-button-id" style="display: none;" href="${tool.toolHelpActionUrl}" title="$rloader.getFormattedMessage("sit_closepage", $tool.toolRenderResult.title)" target="_blank" onclick="tsugi_window_close(); return false">
                                         <span class="Mrphs-itemTitle">${rloader.sit_closepage}</span>
                                     </a>
 

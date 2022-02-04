@@ -633,7 +633,9 @@ public class ProviderServlet extends HttpServlet {
 				plusService.connectLinkAndPlacement(launch.getLink(), toolPlacementId);
 
 				// Continue wth tool oriented URL
-				url.append("/tool-reset/");
+				url.append("/plus/");
+				url.append(site.getId());
+				url.append("/tool/");
 				url.append(toolPlacementId);
 				url.append("?panel=Main");
 			}
