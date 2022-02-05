@@ -284,7 +284,7 @@ var DE_BOUNCE_LTI_FRAME_RESIZE_HEIGHT = false;
 
 // Adapted from Lumen Learning / Bracken Mosbacker
 // element_id is the id of the frame in the parent document
-function lti_frameResize(new_height, element_id) {
+function lti_frameResizePlus(new_height, element_id) {
     if ( self == top ) return;
 
     if ( !new_height ) {
@@ -331,20 +331,28 @@ function lti_frameResizeNow(new_height, element_id) {
     var parm_str = JSON.stringify(parms);
 
     console.log("sending "+parm_str);
-    parent.postMessage(parm_str, "*");
+    window.parent.postMessage(parm_str, "*");
 
     DE_BOUNCE_LTI_FRAME_RESIZE_HEIGHT = new_height;
+
+    window.top.postMessage(parm_str, "*");
+
 }
 
-if ( ! (self == top) ) {
-    if ( typeof LTI_PARENT_IFRAME_ID === 'undefined' ) {
-        lti_frameResize();
-        $PBJQ(window).on('resize', function() { lti_frameResize(); });
-    } else {
-        lti_frameResize(false, LTI_PARENT_IFRAME_ID);
-        $PBJQ(window).on('resize', function() { lti_frameResize(false, LTI_PARENT_IFRAME_ID); });
+$PBJQ(document).ready( function() {
+    if ( ! (self == top) ) {
+        if ( typeof LTI_PARENT_IFRAME_ID === 'undefined' ) {
+            lti_frameResizePlus();
+            setTimeout( function () { lti_frameResizePlus(); }, 2000);
+            $PBJQ(window).on('resize', function() { lti_frameResizePlus(); });
+        } else {
+            lti_frameResizePlus(false, LTI_PARENT_IFRAME_ID);
+            setTimeout( function () { lti_frameResizePlus(false, LTI_PARENT_IFRAME_ID); }, 2000);
+            $PBJQ(window).on('resize', function() { lti_frameResizePlus(false, LTI_PARENT_IFRAME_ID); });
+        }
     }
-}
+});
+
 
 </script>
 
