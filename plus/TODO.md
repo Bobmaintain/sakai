@@ -20,6 +20,13 @@ Figure out inheritance in PlusPortal
 
 Make a single tool content item request and Canvas config flow work
 
+Understand the ramifications of SameSite None - Perhaps add a CSP header to lock things down
+
+Ask Adrian about the use of window.parent in webcomponents/tool/src/main/frontend/js/sakai-button.js
+
+Be unhappy about the fact that resource link placements don't allow resizing
+https://community.canvaslms.com/t5/Canvas-Question-Forum/Dynamically-resizing-iframes-in-Canvas/td-p/131341
+
 THINGS TO RESEARCH
 ------------------
 

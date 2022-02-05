@@ -1034,10 +1034,22 @@ public class ProviderServlet extends HttpServlet {
 
 		// Already in New Window - automatically submit
 		r.append("if ( window == window.parent ) {\n");
-		r.append("document.getElementById('popform').submit();\n");
+		r.append("  document.getElementById('popform').submit();\n");
 		r.append("} else {\n");
-		r.append("document.getElementById('repost_submit').style.display = 'block';\n");
-		r.append("document.getElementById('popform').target = '_blank';\n");
+		// Check if we are https and cannot set a cookie w/ SameSite None (i.e Safari)
+		r.append("  var cookie = 'sakaiplus_test_cookie=1; path=/';\n");
+		r.append("    if (window.location.protocol === 'https:' ) {\n");
+		r.append("    cookie = cookie + '; SameSite=None; secure';\n");
+		r.append("  }\n");
+		r.append("  document.cookie = cookie;\n");
+		r.append("  var res = document.cookie.indexOf('sakaiplus_test_cookie') !== -1;\n");
+		r.append("  if (res) {\n");
+		r.append("    // document.cookie = 'sakaiplus_test_cookie=1; expires=Thu, 01-Jan-1970 00:00:01 GMT';\n");
+		r.append("    document.getElementById('popform').submit();\n");
+		r.append("  } else {\n");
+		r.append("    document.getElementById('repost_submit').style.display = 'block';\n");
+		r.append("    document.getElementById('popform').target = '_blank';\n");
+		r.append("  }\n");
 		r.append("}\n");
 
 		r.append("</script>\n");

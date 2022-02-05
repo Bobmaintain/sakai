@@ -1,11 +1,10 @@
-##<!-- START VM site.vm --> ## Comments seen before doctype. Internet Explorer will go into the quirks mode.
+##<!-- START VM plus.vm --> ## Comments seen before doctype. Internet Explorer will go into the quirks mode.
 ## Create a variable that is a dollar sign for later
 #set ( $d = "$")
 
     #parse("/vm/morpheus/includeStandardHead.vm")
 
-    <body #if( !${loggedIn} ) class="Mrphs-portalBody is-logged-out" #else class="Mrphs-portalBody ${logoSiteClass} #if ( ${toolsCollapsed} ) Mrphs-toolMenu-collapsed #end #if ( ${toolMaximised} ) tool-maximised #end" #end $pageSiteType>
-
+    <body #if( !${loggedIn} ) class="Mrphs-portalBody Mrphs-portalBody-plus is-logged-out" #else class="Mrphs-portalBody Mrphs-portalBody-plus ${logoSiteClass} #if ( ${toolsCollapsed} ) Mrphs-toolMenu-collapsed #end #if ( ${toolMaximised} ) tool-maximised #end" #end $pageSiteType>
 
         #if ( ${bufferedResponse} && ${responseHead} )
         #else 
@@ -18,7 +17,7 @@
 ##
 ## the Page part of the standard view, with page navigation
 ##
-<!-- START VM includePageWithNav.vm -->
+<!-- START inlined version of includePageWithNav.vm -->
 
     <div id="pageBody">
    
@@ -26,13 +25,15 @@
         
         #parse("/vm/morpheus/snippets/siteStatus-snippet.vm")
 
-        #parse("/vm/morpheus/includeSiteHierarchy.vm")
+        ## This strangely adds a link to the site when inside an iframe
+        ## #parse("/vm/morpheus/includeSiteHierarchy.vm")
 
         #parse("/vm/morpheus/includePageBody.vm")
 <script>
 document.getElementById('sakai-maximise-button-id').style.display = 'none';
 document.getElementById('tool-direct-button-id').style.display = 'none';
-if ( ! inIframe() ) document.getElementById('sakai-close-button-id').style.display = 'block';
+// Don't show the close button - if an LMS opens the window we cannot close it.
+// if ( ! inIframe() ) document.getElementById('sakai-close-button-id').style.display = 'block';
 </script>
 
         #parse("/vm/morpheus/includeFooter.vm")
@@ -45,10 +46,10 @@ if ( ! inIframe() ) document.getElementById('sakai-close-button-id').style.displ
 </div>
 
 
-<!-- END VM includePageWithNav.vm -->
+<!-- END inlined version of includePageWithNav.vm -->
 
         </div> <!-- end Mrphs-portalWrapper -->
-        <!-- END VM site.vm -->
+        <!-- END VM plus.vm -->
 
         <!-- Viewport helpers -->
         <div id='Mrphs-viewport-helpers' aria-hidden='true'>
@@ -276,6 +277,76 @@ if ( ! inIframe() ) document.getElementById('sakai-close-button-id').style.displ
         </div>
         #parse("/vm/morpheus/connection-manager.vm")
         #end
+
+<script>
+var DE_BOUNCE_LTI_FRAME_RESIZE_TIMER = false;
+var DE_BOUNCE_LTI_FRAME_RESIZE_HEIGHT = false;
+
+// Adapted from Lumen Learning / Bracken Mosbacker
+// element_id is the id of the frame in the parent document
+function lti_frameResize(new_height, element_id) {
+    if ( self == top ) return;
+
+    if ( !new_height ) {
+        new_height = $(document).height() + 10;
+    }
+    if ( new_height < 100 ) new_height = 100;
+    if ( new_height > 5000 ) new_height = 5000;
+
+    if ( DE_BOUNCE_LTI_FRAME_RESIZE_HEIGHT ) {
+        delta = new_height - DE_BOUNCE_LTI_FRAME_RESIZE_HEIGHT;
+        if ( new_height == 5000 && DE_BOUNCE_LTI_FRAME_RESIZE_HEIGHT >= 5000 ) {
+            console.log("maximum lti_frameResize 5000 exceeded");
+            return;
+        } else if ( new_height > (DE_BOUNCE_LTI_FRAME_RESIZE_HEIGHT + 10) ) {
+            // Do the resize for small increases
+        } else if ( new_height < (DE_BOUNCE_LTI_FRAME_RESIZE_HEIGHT - 30) ) {
+            // Do the resize for large decreases
+        } else {
+            console.log("lti_frameResize delta "+delta+" is too small, ignored");
+            return;
+        }
+    }
+
+    if ( DE_BOUNCE_LTI_FRAME_RESIZE_TIMER ) {
+        clearTimeout(DE_BOUNCE_LTI_FRAME_RESIZE_TIMER);
+        DE_BOUNCE_LTI_FRAME_RESIZE_TIMER = false;
+    }
+
+    DE_BOUNCE_LTI_FRAME_RESIZE_TIMER = setTimeout(
+        function () { lti_frameResizeNow(new_height, element_id); },
+        1000
+    );
+}
+
+
+function lti_frameResizeNow(new_height, element_id) {
+    parms = {
+      subject: "lti.frameResize",
+      height: new_height
+    }
+    if ( element_id ) {
+        parms.element_id = element_id;
+    }
+    var parm_str = JSON.stringify(parms);
+
+    console.log("sending "+parm_str);
+    parent.postMessage(parm_str, "*");
+
+    DE_BOUNCE_LTI_FRAME_RESIZE_HEIGHT = new_height;
+}
+
+if ( ! (self == top) ) {
+    if ( typeof LTI_PARENT_IFRAME_ID === 'undefined' ) {
+        lti_frameResize();
+        $PBJQ(window).on('resize', function() { lti_frameResize(); });
+    } else {
+        lti_frameResize(false, LTI_PARENT_IFRAME_ID);
+        $PBJQ(window).on('resize', function() { lti_frameResize(false, LTI_PARENT_IFRAME_ID); });
+    }
+}
+
+</script>
 
     </body>
 </html>

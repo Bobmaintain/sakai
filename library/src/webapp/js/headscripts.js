@@ -259,15 +259,6 @@ function setMainFrameHeightWithMax(id, maxHeight)
     }
 }
 
-// From tsugiscripts.js
-function tsugi_window_close(message)
-{
-    window.close();
-    setTimeout(function(){ console.log("Attempting self.close"); self.close(); }, 1000);
-    // TODO: Internationalize this
-    setTimeout(function(){ console.log("Notifying the user."); alert(message); open("about:blank", '_self').close(); }, 2000);
-}
-
 function setMainFrameHeight(id)
 {
 	setMainFrameHeightWithMax(id, 32760);  // original default max height for resizing the frame, reason unknown
@@ -959,4 +950,12 @@ function copyToClipboardNoScroll(parent_element, textToCopy) {
   input.remove();
 }
 
+// From tsugiscripts.js
+function tsugi_window_close(message)
+{
+    window.close();
+    try { window.open('', '_self').close(); } catch(e) {};
+    setTimeout(function(){ console.log("Attempting self.close"); self.close(); }, 1000);
+    setTimeout(function(){ console.log("Notifying the user."); alert(message); open("about:blank", '_self').close(); }, 2000);
+}
 
